@@ -92,8 +92,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:#eef0f6;color:var(--text);
   color:#fff;font-size:16px;font-weight:700;
   padding-bottom:14px;letter-spacing:-.02em;
   display:flex;align-items:center;gap:8px}
-.app-header h1::before{
-  content:'✝';font-size:13px;opacity:.7}
+
 
 /* ── tabs ── */
 .tabs{display:flex;gap:0;overflow-x:auto;scrollbar-width:none}
@@ -119,11 +118,27 @@ body{font-family:'Noto Sans KR',sans-serif;background:#eef0f6;color:var(--text);
   letter-spacing:.1em;text-transform:uppercase;
   margin-bottom:6px;margin-top:20px;display:block}
 .slabel:first-child{margin-top:0}
-.section-heading{
+.chief-card .section-heading{
   font-size:13px;font-weight:700;color:var(--navy);
   margin-bottom:12px;padding-bottom:10px;
   border-bottom:1px solid var(--gray2);
   display:flex;align-items:center;gap:6px}
+
+/* Chief 탭 버튼 정렬 */
+#tab-chief .chief-card:first-of-type .slabel{margin-top:0}
+#tab-chief .chief-card:first-of-type{
+  display:grid;grid-template-columns:1fr auto auto;
+  align-items:flex-end;gap:12px;
+  grid-template-areas:
+    "heading heading action"
+    "label label action"
+    "input input action"}
+#tab-chief .chief-card:first-of-type .section-heading{grid-area:heading}
+#tab-chief .chief-card:first-of-type .slabel{grid-area:label}
+#tab-chief .chief-card:first-of-type input[type=date]{grid-area:input}
+#tab-chief .chief-card:first-of-type > div:last-of-type{
+  grid-area:action;display:flex;gap:8px;
+}
 
 /* ═══════════════════════════ INPUTS ═══════════════════════════ */
 input[type=text],input[type=date],select,textarea{
@@ -284,11 +299,6 @@ select{
   display:flex;flex-direction:row;gap:6px;
   align-items:center;padding:0 12px;flex-shrink:0}
 
-/* ── rec-item-side: 수정+인쇄 가로 나란히 ── */
-.rec-item-side{
-  display:flex;flex-direction:row;gap:6px;
-  align-items:center;padding:0 12px;flex-shrink:0}
-
 /* ═══════════════════════════ VIEW PANEL ═══════════════════════ */
 .view-panel{
   background:#fff;border:1px solid var(--border);
@@ -345,7 +355,7 @@ select{
   box-shadow:var(--shadow)}
 .jnl-search-grid{
   display:grid;
-  grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+  grid-template-columns:1fr 1fr auto auto;gap:8px;margin-bottom:8px;align-items:flex-end}
 .jnl-entry{
   background:#fff;border:1px solid var(--border);
   border-radius:var(--r);margin-bottom:10px;
@@ -463,6 +473,15 @@ select{
   .jnl-date-col .jd-day{font-size:18px}
   .mcard{padding:12px 12px}
   .cl-table th,.cl-table td{padding:4px 2px}.cl-table td.rl{font-size:10px;padding-left:5px}
+  
+  /* 모바일 출석부 작성 - 셀 여백 줄이기 */
+  #tab-write .special-wrap select{width:60px;padding:7px 24px 7px 8px}
+  
+  /* 모바일 출석부 목록 - 버튼 숨기기 (목록 뷰) */
+  #tab-records .rec-item-side{display:none}
+  
+  /* 날짜 선택 필터 정렬 */
+  .jnl-search-grid{display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:8px}
 }
 
 /* ═══════════════════════════ PRINT ════════════════════════════ */
@@ -480,10 +499,10 @@ select{
   <div class="app-header">
     <h1>신촌연합교회 다니엘부 출석부</h1>
     <div class="tabs">
-      <button class="tab active" onclick="switchTab('write')">출석부작성</button>
-      <button class="tab" onclick="switchTab('records')">출석부목록</button>
-      <button class="tab" onclick="switchTab('chief')">Chief</button>
-      <button class="tab" onclick="switchTab('journal')">예배일지</button>
+      <button class="tab active" onclick="switchTab('write')">📝 출석부작성</button>
+      <button class="tab" onclick="switchTab('records')">📋 출석부목록</button>
+      <button class="tab" onclick="switchTab('chief')">⭐ Chief</button>
+      <button class="tab" onclick="switchTab('journal')">📖 예배일지</button>
     </div>
   </div>
 
@@ -533,34 +552,30 @@ select{
 
     <div class="chief-card">
       <div class="section-heading">👨‍🏫 선생님 경건생활 조회</div>
-      <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
-        <div style="flex:1;min-width:120px">
-          <span class="slabel">주간 선택 (일요일)</span>
-          <input type="date" id="chief-week" onchange="updateWeekLabel('chief-week','chief-week-hint')">
-          <div id="chief-week-hint" class="week-hint"></div>
-        </div>
-        <div style="display:flex;gap:8px;flex-shrink:0">
-          <button class="btn primary" onclick="runTeacherReport()">조회</button>
-          <button class="btn" onclick="printTeacherReport()">인쇄</button>
-        </div>
+      <span class="slabel">주간 선택 (일요일)</span>
+      <input type="date" id="chief-week" onchange="updateWeekLabel('chief-week','chief-week-hint')">
+      <div id="chief-week-hint" class="week-hint"></div>
+      <div style="display:flex;gap:8px;margin-top:10px;justify-content:flex-end">
+        <button class="btn primary" onclick="runTeacherReport()">조회</button>
+        <button class="btn" onclick="printTeacherReport()">인쇄</button>
       </div>
     </div>
     <div id="teacher-report"></div>
 
     <div class="chief-card" style="margin-top:4px">
       <div class="section-heading">⭐ 어린이 달란트 누적 합계</div>
-      <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
-        <div style="flex:1;min-width:120px">
+      <div class="row3-auto">
+        <div>
           <span class="slabel">시작 주간 (일요일)</span>
           <input type="date" id="talent-from" onchange="snapSunday('talent-from','talent-from-hint')">
           <div id="talent-from-hint" class="week-hint"></div>
         </div>
-        <div style="flex:1;min-width:120px">
+        <div>
           <span class="slabel">종료 주간 (일요일)</span>
           <input type="date" id="talent-to" onchange="snapSunday('talent-to','talent-to-hint')">
           <div id="talent-to-hint" class="week-hint"></div>
         </div>
-        <div style="flex-shrink:0">
+        <div style="align-self:flex-end">
           <button class="btn primary" onclick="runTalentReport()">조회</button>
         </div>
       </div>
@@ -580,14 +595,8 @@ select{
       </div>
       <div style="margin-bottom:4px">
         <span class="slabel">내용</span>
-        <textarea id="jnl-content" style="min-height:280px;font-size:14px;line-height:1.8;font-family:'Noto Sans KR',sans-serif">예배인원: 
-사도신경: 
-찬양: 
-대표기도: 
-설교본문: 
-설교자: 
-예물: 
-활동: </textarea>
+        <textarea id="jnl-content" style="min-height:280px;font-size:14px;line-height:2"
+          placeholder="예배인원:&#10;사도신경:&#10;찬양:&#10;대표기도:&#10;설교본문:&#10;설교자:&#10;예물:&#10;활동:"></textarea>
       </div>
       <div class="save-bar">
         <button class="btn primary lg full" id="jnl-save-btn" onclick="saveJournal()">💾 일지 저장</button>
@@ -605,12 +614,13 @@ select{
           <span class="slabel" style="margin-top:0">종료 날짜</span>
           <input type="date" id="jnl-filter-to" onchange="renderJournals()">
         </div>
+        <button class="btn primary sm" onclick="renderJournals()">조회</button>
+        <button class="btn sm" onclick="clearJournalFilter()">초기화</button>
       </div>
       <div style="display:flex;gap:8px">
         <input type="text" id="jnl-filter-keyword"
-          placeholder="🔍 내용 · 설교자 검색"
+          placeholder="🔍 제목 · 내용 · 작성자 검색"
           style="flex:1" oninput="renderJournals()">
-        <button class="btn sm" onclick="clearJournalFilter()">초기화</button>
       </div>
     </div>
 
@@ -932,13 +942,6 @@ window.renderRecordsList = renderRecordsList;
 async function confirmDelete(id){
   if(!confirm('삭제하시겠습니까?')) return;
   await deleteRec(id); renderRecordsList();
-}
-
-async function confirmDeleteFromView(id){
-  if(!confirm('이 출석부를 삭제하시겠습니까?')) return;
-  await deleteRec(id);
-  document.getElementById('record-view-wrap').innerHTML='';
-  renderRecordsList();
 }
 
 async function confirmDeleteFromView(id){
@@ -1302,7 +1305,7 @@ async function saveJournal(){
   try{
     await jnlSave(j);
     btn.disabled=false; btn.innerHTML='💾 일지 저장';
-    document.getElementById('jnl-content').value='예배인원: \n사도신경: \n찬양: \n대표기도: \n설교본문: \n설교자: \n예물: \n활동: ';
+    document.getElementById('jnl-content').value='';
     await renderJournals();
     document.getElementById('journal-list').scrollIntoView({behavior:'smooth',block:'start'});
   }catch(e){
@@ -1323,7 +1326,7 @@ async function renderJournals(){
   const filtered=all.filter(j=>{
     if(from&&j.date<from) return false;
     if(to&&j.date>to) return false;
-    if(kw&&!(j.content||'').toLowerCase().includes(kw)) return false;
+    if(kw&&![j.title,j.verse,j.content,j.prayer,j.author].join(' ').toLowerCase().includes(kw)) return false;
     return true;
   });
   if(!filtered.length){
@@ -1335,16 +1338,7 @@ async function renderJournals(){
     const d=new Date(j.date+'T00:00:00');
     const year=d.getFullYear(),month=d.getMonth()+1,day=d.getDate(),dow=DOWS[d.getDay()];
     const dateTitle=`${year}년 ${month}월 ${day}일 (${dow})`;
-    const contentLines=(j.content||'').split('\n').filter(l=>l.trim());
-    const preacherLine=contentLines.find(l=>l.startsWith('설교본문:'));
-    const preview=preacherLine?preacherLine.replace(/^[^:]*:\s*/,'').slice(0,50):'';
-    const displayContent=contentLines.map(line=>{
-      const colonIdx=line.indexOf(':');
-      if(colonIdx>-1){
-        return `<div style="margin-bottom:6px"><span style="color:var(--text3);font-weight:600">${escHtml(line.substring(0,colonIdx+1))}</span> <span>${escHtml(line.substring(colonIdx+1).trim())}</span></div>`;
-      }
-      return `<div style="margin-bottom:6px">${escHtml(line)}</div>`;
-    }).join('');
+    const preview=(j.content||'').replace(/\n/g,' ').slice(0,50);
     return `<div class="jnl-entry" id="je-${j.id}">
       <div class="jnl-entry-top" onclick="toggleJournal(${j.id})">
         <div class="jnl-date-col">
@@ -1353,7 +1347,7 @@ async function renderJournals(){
         </div>
         <div class="jnl-entry-mid">
           <div class="jnl-entry-title">${dateTitle}</div>
-          ${preview?`<div class="jnl-preview">${escHtml(preview)}</div>`:''}
+          ${preview?`<div class="jnl-preview">${escHtml(preview)}…</div>`:''}
         </div>
         <div class="jnl-entry-actions" onclick="event.stopPropagation()">
           <button class="btn sm secondary icon" onclick="openJournalEdit(${j.id})">✏</button>
@@ -1361,7 +1355,11 @@ async function renderJournals(){
         </div>
       </div>
       <div class="jnl-body" id="jb-${j.id}">
-        <div style="white-space:pre-wrap;word-wrap:break-word;font-size:13px;line-height:1.6">${displayContent}</div>
+        <div class="jnl-section-text">${escHtml(j.content||'')}</div>
+        <div style="display:flex;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+          <button class="btn sm secondary" onclick="openJournalEdit(${j.id})">✏️ 수정</button>
+          <button class="btn sm danger" onclick="deleteJournal(${j.id})">🗑️ 삭제</button>
+        </div>
       </div>
     </div>`;
   }).join('');
@@ -1392,9 +1390,9 @@ function openJournalEdit(id){
       <span class="slabel">날짜</span>
       <input type="date" id="je-date" value="${j.date}">
     </div>
-    <div style="margin-bottom:4px">
+    <div>
       <span class="slabel">내용</span>
-      <textarea id="je-content" style="min-height:280px;font-size:14px;line-height:1.8;font-family:'Courier New',monospace">${escHtml(j.content||'')}</textarea>
+      <textarea id="je-content" style="min-height:280px;font-size:14px;line-height:2">${escHtml(j.content||'')}</textarea>
     </div>`;
   document.getElementById('jnl-edit-overlay').classList.add('open');
   document.body.style.overflow='hidden';
@@ -1407,7 +1405,9 @@ function closeJournalEdit(){
 
 async function saveJournalEdit(){
   const orig=jnlLocalAll().find(j=>j.id===_jnlEditId); if(!orig) return;
-  const updated={...orig,date:document.getElementById('je-date').value,content:document.getElementById('je-content').value.trim()};
+  const updated={...orig,
+    date:document.getElementById('je-date').value,
+    content:document.getElementById('je-content').value.trim()};
   if(!updated.date){alert('날짜를 선택해주세요.');return;}
   await jnlSave(updated); closeJournalEdit(); renderJournals();
 }
