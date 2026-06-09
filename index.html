@@ -164,6 +164,8 @@ input[type=text],input[type=date],select,textarea{
   border:1.5px solid var(--border);border-radius:var(--r-sm);
   background:#fff;color:var(--text);transition:border-color .15s,box-shadow .15s;
   outline:none;appearance:none;-webkit-appearance:none}
+input[type=date]{color:var(--text);-webkit-text-fill-color:var(--text)}
+input[type=date]::-webkit-date-and-time-value{color:var(--text);text-align:left}
 input[type=text]::placeholder,textarea::placeholder{color:var(--text3)}
 input:focus,select:focus,textarea:focus{
   border-color:var(--blue);
@@ -382,28 +384,16 @@ select{
   transition:border-color .15s,box-shadow .15s}
 .jnl-entry:hover{border-color:var(--blue-m);box-shadow:var(--shadow-md)}
 .jnl-entry-top{
-  display:flex;align-items:stretch;cursor:pointer}
-.jnl-date-col{
+  display:flex;flex-direction:column;cursor:pointer}
+.jnl-entry-header{
   background:var(--navy);color:#fff;
-  padding:14px 12px;text-align:center;
-  flex-shrink:0;min-width:56px;
-  display:flex;flex-direction:column;
-  align-items:center;justify-content:center}
-.jnl-date-col .jd-day{font-size:22px;font-weight:700;line-height:1}
-.jnl-date-col .jd-month{font-size:10px;opacity:.75;margin-top:2px}
-.jnl-entry-mid{flex:1;padding:12px 14px;min-width:0}
-.jnl-entry-title{
-  font-size:14px;font-weight:700;color:var(--navy);
-  margin-bottom:4px;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.jnl-entry-sub{
-  display:flex;gap:6px;flex-wrap:wrap;align-items:center}
-.tag{
-  background:var(--blue-xl);color:var(--blue);
-  padding:2px 8px;border-radius:10px;
-  font-size:11px;font-weight:600;white-space:nowrap}
-.jnl-preview{
-  font-size:12px;color:var(--text3);margin-top:3px;
+  padding:11px 16px;
+  display:flex;align-items:center}
+.jnl-entry-date{
+  font-size:14px;font-weight:700;line-height:1.3}
+.jnl-entry-preview{
+  padding:10px 16px;
+  font-size:14px;color:var(--navy);font-weight:700;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .jnl-entry-actions{
   display:flex;flex-direction:column;gap:0;
@@ -488,8 +478,6 @@ select{
   .jnl-entry-actions{flex-direction:row;border-left:none;border-top:1px solid var(--gray2)}
   .jnl-entry-actions .btn{border-bottom:none!important}
   .jnl-entry-top{flex-direction:column}
-  .jnl-date-col{flex-direction:row;gap:8px;padding:10px 14px;min-width:unset}
-  .jnl-date-col .jd-day{font-size:18px}
   .mcard{padding:12px 12px}
   .cl-table th,.cl-table td{padding:3px 1px}.cl-table td.rl{font-size:10px;padding-left:4px;padding-right:4px;white-space:nowrap;width:1%}
   
@@ -645,7 +633,7 @@ select{
       </div>
       <div style="display:flex;gap:8px">
         <input type="text" id="jnl-filter-keyword"
-          placeholder="🔍 제목 · 내용 · 작성자 검색"
+          placeholder="🔍 내용 · 설교자 검색"
           style="flex:1" oninput="renderJournals()">
       </div>
     </div>
@@ -1386,14 +1374,10 @@ async function renderJournals(){
     const preview=((j.content||'').split('설교본문:')[1]||'').trim().split('\n')[0].slice(0,120);
     return `<div class="jnl-entry" id="je-${j.id}">
       <div class="jnl-entry-top" onclick="toggleJournal(${j.id})">
-        <div class="jnl-date-col">
-          <div class="jd-day">${day}</div>
-          <div class="jd-month">${month}월(${dow})</div>
+        <div class="jnl-entry-header">
+          <span class="jnl-entry-date">${dateTitle}</span>
         </div>
-        <div class="jnl-entry-mid">
-          <div class="jnl-entry-title">${dateTitle}</div>
-          ${preview?`<div class="jnl-preview">${escHtml(preview)}…</div>`:''}
-        </div>
+        ${preview?`<div class="jnl-entry-preview">${escHtml(preview)}</div>`:''}
       </div>
       <div class="jnl-body" id="jb-${j.id}">
         <div class="jnl-section-text">${escHtml(j.content||'')}</div>
@@ -1469,6 +1453,11 @@ async function saveJournalEdit(){
     container:document.getElementById('members-container'),removable:false});
 
   document.getElementById('jnl-date').value=fmt(today);
+
+  // 예배일지 날짜 필터 초기값: 시작=3개월 전, 종료=오늘
+  const jnlFrom=new Date(today); jnlFrom.setMonth(jnlFrom.getMonth()-3);
+  document.getElementById('jnl-filter-from').value=fmt(jnlFrom);
+  document.getElementById('jnl-filter-to').value=fmt(today);
 
   const ago=new Date(sun); ago.setDate(sun.getDate()-21);
   document.getElementById('talent-from').value=fmt(ago);
