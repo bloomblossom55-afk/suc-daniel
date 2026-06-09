@@ -265,7 +265,7 @@ select{
 
 /* ── checklist table ── */
 .cl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:10px}
-.cl-table{border-collapse:collapse;width:100%;min-width:380px}
+.cl-table{border-collapse:collapse;width:100%}
 .cl-table th{
   padding:5px 5px;text-align:center;font-weight:700;
   color:var(--text3);font-size:11px;
@@ -275,7 +275,8 @@ select{
   border:1px solid var(--gray2)}
 .cl-table td.rl{
   text-align:left;font-size:11.5px;font-weight:600;color:var(--text2);
-  background:var(--gray1);white-space:nowrap;padding-left:7px}
+  background:var(--gray1);white-space:nowrap;padding-left:7px;
+  width:1%;padding-right:7px}
 .cl-table input[type=checkbox]{
   width:18px;height:18px;accent-color:var(--blue);cursor:pointer}
 
@@ -490,7 +491,7 @@ select{
   .jnl-date-col{flex-direction:row;gap:8px;padding:10px 14px;min-width:unset}
   .jnl-date-col .jd-day{font-size:18px}
   .mcard{padding:12px 12px}
-  .cl-table th,.cl-table td{padding:3px 1px}.cl-table td.rl{font-size:10px;padding-left:5px;padding-right:3px;white-space:nowrap}
+  .cl-table th,.cl-table td{padding:3px 1px}.cl-table td.rl{font-size:10px;padding-left:4px;padding-right:4px;white-space:nowrap;width:1%}
   
   /* 모바일 출석부 작성 - 셀 여백 줄이기 */
   #tab-write .special-wrap select{width:60px;padding:7px 24px 7px 8px}
@@ -568,19 +569,17 @@ select{
   <!-- ═══════════════════ Chief 탭 ═══════════════════ -->
   <div class="page" id="tab-chief">
 
-    <div class="chief-card chief-card-week">
+    <div class="chief-card">
       <div class="section-heading">👨‍🏫 선생님 경건생활 조회</div>
-      <span class="slabel">주간 선택 (일요일)</span>
-      <div class="chief-week-group">
-        <div class="chief-week-input">
+      <div style="display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:flex-end">
+        <div>
+          <span class="slabel" style="margin-top:0">주간 선택 (일요일)</span>
           <input type="date" id="chief-week" onchange="updateWeekLabel('chief-week','chief-week-hint')">
-          <div id="chief-week-hint" class="week-hint"></div>
         </div>
-        <div class="chief-week-actions">
-          <button class="btn primary" onclick="runTeacherReport()">조회</button>
-          <button class="btn" onclick="printTeacherReport()">인쇄</button>
-        </div>
+        <button class="btn primary" onclick="runTeacherReport()">조회</button>
+        <button class="btn" onclick="printTeacherReport()">인쇄</button>
       </div>
+      <div id="chief-week-hint" class="week-hint" style="margin-top:4px"></div>
     </div>
     <div id="teacher-report"></div>
 
@@ -846,7 +845,7 @@ function buildMemberCard({role,data,container,studentIndex,removable}){
     ${topChecks}
     <div class="cl-wrap">
       <table class="cl-table">
-        <thead><tr><th style="min-width:72px"></th>${dayThs}</tr></thead>
+        <thead><tr><th style="width:1%"></th>${dayThs}</tr></thead>
         <tbody>${clRows}</tbody>
       </table>
     </div>
@@ -1025,7 +1024,7 @@ function buildViewPanel(rec,opts={}){
         ${topChecks}
         <div class="cl-wrap">
           <table class="cl-table">
-            <thead><tr><th style="min-width:72px"></th>${dayThs}</tr></thead>
+            <thead><tr><th style="width:1%"></th>${dayThs}</tr></thead>
             <tbody>${clRows}</tbody>
           </table>
         </div>
@@ -1230,7 +1229,7 @@ async function runTeacherReport(){
         </div>
         <div class="cl-wrap">
           <table class="cl-table">
-            <thead><tr><th style="min-width:72px"></th>${dayThs}</tr></thead>
+            <thead><tr><th style="width:1%"></th>${dayThs}</tr></thead>
             <tbody>${clRows}</tbody>
           </table>
         </div>
