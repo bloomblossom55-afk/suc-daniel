@@ -27,6 +27,7 @@ try {
   const db  = getDatabase(app);
   const ATT = "attendance";
   const JNL = "journals";
+  const LSN = "lessons";
 
   const fbSave    = async (rec, root=ATT) => { await set(ref(db,`${root}/${rec.id}`), rec); };
   const fbDelete  = async (id,  root=ATT) => { await remove(ref(db,`${root}/${id}`)); };
@@ -36,7 +37,7 @@ try {
     return Object.values(snap.val()).filter(Boolean);
   };
 
-  window._fb = { fbSave, fbDelete, fbGetAll, ATT, JNL };
+  window._fb = { fbSave, fbDelete, fbGetAll, ATT, JNL, LSN };
 
   // 출석부 실시간 반영
   onValue(ref(db, ATT), () => {
@@ -47,6 +48,11 @@ try {
   onValue(ref(db, JNL), () => {
     if (document.getElementById('tab-journal')?.classList.contains('active'))
       window.renderJournals?.();
+  });
+  // 교안 실시간 반영
+  onValue(ref(db, LSN), () => {
+    if (document.getElementById('tab-lesson')?.classList.contains('active'))
+      window.renderLessons?.();
   });
 
   console.log('[Firebase] 연결 완료');
@@ -498,6 +504,55 @@ select{
   .page{display:block!important;padding:0}
   body{background:#fff}
 }
+
+/* ═══════════════════════ COMPLETE BADGE ═══════════════════════ */
+.complete-label{
+  display:flex;align-items:center;gap:6px;
+  font-size:12px;font-weight:700;cursor:pointer;
+  margin-left:auto;padding:4px 8px;border-radius:20px;
+  border:1.5px solid var(--gray3);color:var(--text3);
+  transition:all .15s;user-select:none}
+.complete-label input{display:none}
+.complete-label.done{background:var(--green-l);border-color:var(--green);color:#1a7a50}
+.status-badge{
+  font-size:10px;font-weight:700;padding:2px 8px;
+  border-radius:20px;white-space:nowrap}
+.status-badge.done{background:var(--green-l);color:#1a7a50}
+.status-badge.todo{background:var(--gray2);color:var(--text3)}
+
+/* ═══════════════════════ LESSON TAB ═══════════════════════════ */
+.lsn-write-card{
+  background:#fff;border:1px solid var(--border);
+  border-left:4px solid var(--amber);
+  border-radius:var(--r);padding:16px;margin-bottom:12px;
+  box-shadow:var(--shadow)}
+.lsn-field{margin-bottom:14px}
+.lsn-field:last-child{margin-bottom:0}
+.lsn-entry{
+  background:#fff;border:1px solid var(--border);
+  border-radius:var(--r);margin-bottom:10px;
+  overflow:hidden;box-shadow:var(--shadow);
+  transition:border-color .15s,box-shadow .15s}
+.lsn-entry:hover{border-color:var(--amber);box-shadow:var(--shadow-md)}
+.lsn-entry-header{
+  background:var(--navy);color:#fff;
+  padding:11px 16px;cursor:pointer;
+  display:flex;align-items:center;justify-content:space-between}
+.lsn-entry-date{font-size:14px;font-weight:700}
+.lsn-entry-author{font-size:12px;opacity:.75}
+.lsn-body{
+  display:none;padding:14px 16px;
+  border-top:1px solid var(--gray2);background:var(--gray1)}
+.lsn-body.open{display:block}
+.lsn-row{margin-bottom:10px}
+.lsn-row-label{
+  font-size:10px;font-weight:700;color:var(--text3);
+  letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px}
+.lsn-row-text{
+  font-size:13px;color:var(--text);line-height:1.75;
+  white-space:pre-wrap;word-break:break-word;
+  background:#fff;border-radius:var(--r-sm);
+  padding:9px 12px;border:1px solid var(--border)}
 </style>
 </head>
 <body>
@@ -510,6 +565,7 @@ select{
       <button class="tab" onclick="switchTab('records')">📋 출석부목록</button>
       <button class="tab" onclick="switchTab('chief')">⭐ Chief</button>
       <button class="tab" onclick="switchTab('journal')">📖 예배일지</button>
+      <button class="tab" onclick="switchTab('lesson')">📚 교안</button>
     </div>
   </div>
 
@@ -531,6 +587,7 @@ select{
     <div id="members-container"></div>
 
     <div class="action-row">
+      <button class="btn secondary" onclick="addTeacher()">+ 선생님 추가</button>
       <button class="btn primary" onclick="addStudent()">+ 어린이 추가</button>
       <button class="btn" id="note-toggle-btn" onclick="toggleGroupNote()">📌 참고사항 작성</button>
     </div>
@@ -588,7 +645,28 @@ select{
       </div>
     </div>
     <div id="talent-report"></div>
-  </div>
+
+    <div class="chief-card" style="margin-top:4px">
+      <div class="section-heading">🙏 어린이 기도제목 조회</div>
+      <div style="margin-bottom:10px">
+        <span class="slabel" style="margin-top:0">어린이 이름 검색</span>
+        <input type="text" id="prayer-name" placeholder="이름 입력 (비우면 전체 조회)">
+      </div>
+      <div class="chief-talent-group">
+        <div>
+          <span class="slabel">시작 날짜</span>
+          <input type="date" id="prayer-from">
+        </div>
+        <div>
+          <span class="slabel">종료 날짜</span>
+          <input type="date" id="prayer-to">
+        </div>
+        <div style="align-self:flex-end">
+          <button class="btn primary" onclick="runPrayerReport()">조회</button>
+        </div>
+      </div>
+    </div>
+    <div id="prayer-report"></div>
 
   <!-- ═══════════════════ 예배일지 탭 ═══════════════════ -->
   <div class="page" id="tab-journal">
@@ -643,6 +721,90 @@ select{
   </div>
 
 </div><!-- /app -->
+
+  <!-- ═══════════════════ 교안 탭 ═══════════════════ -->
+  <div class="page" id="tab-lesson">
+    <!-- 작성 영역 -->
+    <div class="lsn-write-card">
+      <div class="jnl-write-title">✍ 새 교안 작성</div>
+      <div class="lsn-field">
+        <span class="slabel">날짜</span>
+        <input type="date" id="lsn-date">
+      </div>
+      <div class="lsn-field">
+        <span class="slabel">작성자</span>
+        <input type="text" id="lsn-author" placeholder="이름">
+      </div>
+      <div class="lsn-field">
+        <span class="slabel">본문말씀</span>
+        <input type="text" id="lsn-verse" placeholder="예: 마태복음 5:1-12">
+      </div>
+      <div class="lsn-field">
+        <span class="slabel">3줄요약</span>
+        <textarea id="lsn-summary" style="min-height:80px" placeholder="핵심 내용을 3줄로 요약"></textarea>
+      </div>
+      <div class="lsn-field">
+        <span class="slabel">핵심단어</span>
+        <input type="text" id="lsn-keyword" placeholder="핵심단어">
+      </div>
+      <div class="lsn-field">
+        <span class="slabel">핵심이미지</span>
+        <input type="text" id="lsn-image" placeholder="핵심이미지 또는 상징">
+      </div>
+      <div class="lsn-field">
+        <span class="slabel">메시지</span>
+        <textarea id="lsn-message" style="min-height:120px" placeholder="메시지 내용"></textarea>
+      </div>
+      <div class="lsn-field">
+        <span class="slabel">기도제목 (적용/실천)</span>
+        <textarea id="lsn-prayer" style="min-height:80px" placeholder="적용 및 실천 기도제목"></textarea>
+      </div>
+      <div class="save-bar">
+        <button class="btn primary lg full" id="lsn-save-btn" onclick="saveLesson()">💾 교안 저장</button>
+      </div>
+    </div>
+
+    <!-- 검색 -->
+    <div class="jnl-search">
+      <div class="jnl-search-grid">
+        <div>
+          <span class="slabel" style="margin-top:0">시작 날짜</span>
+          <input type="date" id="lsn-filter-from" onchange="renderLessons()">
+        </div>
+        <div>
+          <span class="slabel" style="margin-top:0">종료 날짜</span>
+          <input type="date" id="lsn-filter-to" onchange="renderLessons()">
+        </div>
+        <button class="btn primary sm" onclick="renderLessons()">조회</button>
+        <button class="btn sm" onclick="clearLessonFilter()">초기화</button>
+      </div>
+      <div style="display:flex;gap:8px">
+        <input type="text" id="lsn-filter-keyword"
+          placeholder="🔍 작성자 · 내용 검색"
+          style="flex:1" oninput="renderLessons()">
+      </div>
+    </div>
+
+    <!-- 교안 목록 -->
+    <div id="lesson-list"></div>
+  </div>
+
+</div><!-- /app -->
+
+<!-- ═══ LESSON EDIT OVERLAY ═══ -->
+<div class="overlay" id="lsn-edit-overlay">
+  <div class="overlay-inner" style="max-width:680px">
+    <div class="overlay-header">
+      <div class="overlay-title">📚 교안 수정</div>
+      <button class="btn sm danger" onclick="closeLessonEdit()">✕ 닫기</button>
+    </div>
+    <div id="lsn-edit-body"></div>
+    <div class="save-bar">
+      <button class="btn" onclick="closeLessonEdit()">취소</button>
+      <button class="btn primary" id="lsn-edit-save-btn" onclick="saveLessonEdit()">💾 저장</button>
+    </div>
+  </div>
+</div>
 
 <!-- ═══ JOURNAL EDIT OVERLAY ═══ -->
 <div class="overlay" id="jnl-edit-overlay">
@@ -773,12 +935,13 @@ function snapSunday(iId,hId){ updateWeekLabel(iId,hId); }
 
 /* ════════════════════════ TABS ════════════════════════════════ */
 function switchTab(t){
-  ['write','records','chief','journal'].forEach((n,i)=>{
+  ['write','records','chief','journal','lesson'].forEach((n,i)=>{
     document.querySelectorAll('.tab')[i].classList.toggle('active',n===t);
     document.getElementById('tab-'+n).classList.toggle('active',n===t);
   });
   if(t==='records') renderRecordsList();
   if(t==='journal') renderJournals();
+  if(t==='lesson') renderLessons();
 }
 // renderRecordsList는 아래 RECORDS LIST 섹션에서 정의 후 노출
 
@@ -789,10 +952,6 @@ function buildMemberCard({role,data,container,studentIndex,removable}){
   _mcCount++;
   const id='mc-'+_mcCount;
   const isT = role==='teacher';
-
-  let specOpts='<option value="0">0</option>';
-  for(let i=1;i<=SPECIAL_MAX;i++)
-    specOpts+=`<option value="${i}"${data&&data.special==i?' selected':''} >${i}</option>`;
 
   const dayThs=DAYS.map(d=>`<th>${d}</th>`).join('');
   const clRows=CHECKS.map(c=>{
@@ -812,13 +971,22 @@ function buildMemberCard({role,data,container,studentIndex,removable}){
       </label>
       <div class="special-wrap">
         <span>특별달란트</span>
-        <select data-ck="special">${specOpts}</select>
+        <input type="number" data-ck="special" min="0" max="99" value="${data&&data.special||0}"
+          style="width:58px;text-align:center;padding:7px 6px">
       </div>
     </div>`;
 
+  const completeLabel=isT?`
+    <label class="complete-label${data&&data.completed?' done':''}" id="cl-${id}"
+      onclick="toggleComplete(this)">
+      <input type="checkbox" class="complete-check"${data&&data.completed?' checked':''}>
+      <span class="complete-text">${data&&data.completed?'✅ 완료':'⬜ 미완'}</span>
+    </label>`:'';
+
   const notesVal=(data&&data.notes||'').replace(/"/g,'&quot;');
   const removeBtn=removable
-    ?`<button class="btn xs danger icon" onclick="document.getElementById('${id}').remove()" style="margin-left:auto">✕</button>`:'';
+    ?`<button class="btn xs danger icon" onclick="document.getElementById('${id}').remove()" style="margin-left:auto">✕</button>`
+    :(isT?'':'' ); // 선생님 비removable은 completeLabel이 margin-left:auto 역할
 
   const div=document.createElement('div');
   div.className=isT?'mcard is-teacher':'mcard is-student';
@@ -828,6 +996,7 @@ function buildMemberCard({role,data,container,studentIndex,removable}){
       <input class="name-input" type="text" placeholder="이름"
         value="${data&&data.name?data.name.replace(/"/g,'&quot;'):''}">
       <span class="role-badge ${isT?'teacher':'student'}">${isT?'선생님':'어린이 '+studentIndex}</span>
+      ${completeLabel}
       ${removeBtn}
     </div>
     ${topChecks}
@@ -845,11 +1014,23 @@ function buildMemberCard({role,data,container,studentIndex,removable}){
   return div;
 }
 
+function addTeacher(data){
+  buildMemberCard({role:'teacher',data:data||null,
+    container:document.getElementById('members-container'),removable:true});
+}
+
 function addStudent(data){
   studentCount++;
   buildMemberCard({role:'student',data:data||null,
     container:document.getElementById('members-container'),
     studentIndex:studentCount,removable:true});
+}
+
+function toggleComplete(el){
+  el.classList.toggle('done');
+  const cb=el.querySelector('.complete-check');
+  cb.checked=!cb.checked;
+  el.querySelector('.complete-text').textContent=cb.checked?'✅ 완료':'⬜ 미완';
 }
 
 function toggleNote(btn){
@@ -874,13 +1055,14 @@ function collectMembersFrom(container){
     const sunday=isT?false:!!(card.querySelector('[data-ck="sunday"]')?.checked);
     const offering=isT?false:!!(card.querySelector('[data-ck="offering"]')?.checked);
     const special=isT?0:parseInt(card.querySelector('[data-ck="special"]')?.value||0);
+    const completed=isT?!!(card.querySelector('.complete-check')?.checked):false;
     const chk={};
     CHECKS.forEach(c=>{chk[c.key]=[false,false,false,false,false,false];});
     card.querySelectorAll('input[type=checkbox][data-ck][data-di]').forEach(cb=>{
       const k=cb.dataset.ck,i=parseInt(cb.dataset.di);
       if(chk[k]) chk[k][i]=cb.checked;
     });
-    return{name,notes,sunday,offering,special,isTeacher:isT,...chk};
+    return{name,notes,sunday,offering,special,completed,isTeacher:isT,...chk};
   });
 }
 
@@ -938,17 +1120,23 @@ async function renderRecordsList(){
     lw.innerHTML='<div class="empty-state"><div class="ico">📭</div>저장된 출석부가 없습니다.</div>';
     return;
   }
-  lw.innerHTML=arr.map(r=>`
+  lw.innerHTML=arr.map(r=>{
+    const teacher=r.members.find((m,i)=>m.isTeacher||i===0);
+    const done=teacher?.completed;
+    return `
     <div class="rec-item">
       <div class="rec-item-body" onclick="viewRecord(${r.id})">
-        <div class="rec-title">${r.weekStart.replace(/-/g,'.')} ${r.className}</div>
+        <div class="rec-title" style="display:flex;align-items:center;gap:8px">
+          ${r.weekStart.replace(/-/g,'.')} ${r.className}
+          <span class="status-badge ${done?'done':'todo'}">${done?'✅ 완료':'⬜ 미완'}</span>
+        </div>
         <div class="rec-meta">${weekLabel(r.weekStart)} · ${r.members.length}명</div>
       </div>
       <div class="rec-item-side">
         <button class="btn sm secondary" onclick="event.stopPropagation();openEdit(${r.id})">✏ 수정</button>
         <button class="btn sm" onclick="event.stopPropagation();printRecord(${r.id})">인쇄</button>
       </div>
-    </div>`).join('');
+    </div>`}).join('');
 }
 
 window.renderRecordsList = renderRecordsList;
@@ -981,12 +1169,12 @@ function buildViewPanel(rec,opts={}){
     const role=isT?'선생님':`어린이 ${mi}`;
     const topChecks=isT?'':`
       <div class="top-checks">
-        <span class="check-item">
-          <span class="ro-check${m.sunday?' on':''}">✓</span> 주일출석
-        </span>
-        <span class="check-item">
-          <span class="ro-check${m.offering?' on':''}">✓</span> 예물
-        </span>
+        ${m.sunday?`<span class="check-item">
+          <span class="ro-check on">✓</span> 주일출석
+        </span>`:''}
+        ${m.offering?`<span class="check-item">
+          <span class="ro-check on">✓</span> 예물
+        </span>`:''}
         ${(m.special||0)>0?`<span class="special-wrap">
           <span>특별달란트</span>
           <span style="background:var(--amber);color:#fff;font-size:12px;font-weight:700;padding:3px 9px;border-radius:12px">${m.special}</span>
@@ -1007,6 +1195,7 @@ function buildViewPanel(rec,opts={}){
         <div class="mcard-header">
           <span style="font-size:15px;font-weight:700;color:var(--navy)">${m.name||'(이름없음)'}</span>
           <span class="role-badge ${isT?'teacher':'student'}">${role}</span>
+          ${isT?`<span class="status-badge ${m.completed?'done':'todo'}" style="margin-left:auto">${m.completed?'✅ 완료':'⬜ 미완'}</span>`:''}
           ${talentBadge}
         </div>
         ${topChecks}
@@ -1136,6 +1325,7 @@ async function openEdit(id){
     <span class="slabel">구성원</span>
     <div id="edit-members"></div>
     <div class="action-row">
+      <button class="btn secondary" onclick="editAddTeacher()">+ 선생님 추가</button>
       <button class="btn" onclick="editAddStudent()">+ 어린이 추가</button>
     </div>
     <div style="margin-top:14px">
@@ -1152,6 +1342,11 @@ async function openEdit(id){
   window._editStudentCount=ec;
   document.getElementById('edit-overlay').classList.add('open');
   document.body.style.overflow='hidden';
+}
+
+function editAddTeacher(){
+  buildMemberCard({role:'teacher',data:null,
+    container:document.getElementById('edit-members'),removable:true});
 }
 
 function editAddStudent(){
@@ -1306,6 +1501,204 @@ async function runTalentReport(){
   cont.innerHTML=html;
 }
 
+/* ════════════════════════ LESSON ══════════════════════════════ */
+
+/* 로컬 */
+function lsnLocalAll(){ try{return JSON.parse(localStorage.getItem('ssc_lessons')||'[]')}catch(e){return[]} }
+function lsnLocalSave(l){
+  let a=lsnLocalAll().filter(x=>x.id!==l.id); a.push(l);
+  a.sort((a,b)=>b.date.localeCompare(a.date)||b.createdAt.localeCompare(a.createdAt));
+  localStorage.setItem('ssc_lessons',JSON.stringify(a));
+}
+function lsnLocalDel(id){ localStorage.setItem('ssc_lessons',JSON.stringify(lsnLocalAll().filter(l=>l.id!==id))); }
+
+/* Firebase + Local */
+async function lsnGetAll(){
+  const fb=getFb();
+  if(fb){
+    try{
+      const remote=await fb.fbGetAll(fb.LSN);
+      remote.forEach(l=>lsnLocalSave(l));
+      return remote.sort((a,b)=>b.date.localeCompare(a.date)||b.createdAt.localeCompare(a.createdAt));
+    }catch(e){ console.warn('FB lesson read 실패:',e); }
+  }
+  return lsnLocalAll();
+}
+async function lsnSave(l){
+  lsnLocalSave(l);
+  const fb=getFb();
+  if(fb) await fb.fbSave(l, fb.LSN);
+}
+async function lsnDel(id){
+  lsnLocalDel(id);
+  const fb=getFb();
+  if(fb) try{ await fb.fbDelete(id, fb.LSN); }catch(e){}
+}
+
+async function saveLesson(){
+  const date=document.getElementById('lsn-date').value;
+  const author=document.getElementById('lsn-author').value.trim();
+  if(!date||!author){alert('날짜와 작성자를 입력해주세요.');return;}
+  const btn=document.getElementById('lsn-save-btn');
+  btn.disabled=true; btn.innerHTML='<span class="spinner"></span> 저장 중…';
+  const l={
+    id:Date.now(),_type:'lesson',date,
+    author,
+    verse:document.getElementById('lsn-verse').value.trim(),
+    summary:document.getElementById('lsn-summary').value.trim(),
+    keyword:document.getElementById('lsn-keyword').value.trim(),
+    image:document.getElementById('lsn-image').value.trim(),
+    message:document.getElementById('lsn-message').value.trim(),
+    prayer:document.getElementById('lsn-prayer').value.trim(),
+    createdAt:new Date().toISOString()
+  };
+  try{
+    await lsnSave(l);
+    btn.disabled=false; btn.innerHTML='💾 교안 저장';
+    ['lsn-date','lsn-author','lsn-verse','lsn-keyword','lsn-image'].forEach(i=>document.getElementById(i).value='');
+    ['lsn-summary','lsn-message','lsn-prayer'].forEach(i=>document.getElementById(i).value='');
+    await renderLessons();
+    document.getElementById('lesson-list').scrollIntoView({behavior:'smooth',block:'start'});
+    alert('저장되었습니다!');
+  }catch(e){
+    btn.disabled=false; btn.innerHTML='💾 교안 저장';
+    alert('저장 실패: '+e.message);
+  }
+}
+
+async function renderLessons(){
+  const cont=document.getElementById('lesson-list');
+  cont.innerHTML='<div class="empty-state"><div class="ico">⏳</div>불러오는 중…</div>';
+  const all=await lsnGetAll();
+  const from=document.getElementById('lsn-filter-from')?.value||'';
+  const to=document.getElementById('lsn-filter-to')?.value||'';
+  const kw=(document.getElementById('lsn-filter-keyword')?.value||'').trim().toLowerCase();
+  const filtered=all.filter(l=>{
+    if(from&&l.date<from) return false;
+    if(to&&l.date>to) return false;
+    if(kw&&![l.author,l.verse,l.summary,l.keyword,l.message,l.prayer].join(' ').toLowerCase().includes(kw)) return false;
+    return true;
+  });
+  if(!filtered.length){
+    cont.innerHTML='<div class="empty-state"><div class="ico">📚</div>교안이 없습니다.</div>';
+    return;
+  }
+  const DOWS=['일','월','화','수','목','금','토'];
+  cont.innerHTML=filtered.map(l=>{
+    const d=new Date(l.date+'T00:00:00');
+    const year=d.getFullYear(),month=d.getMonth()+1,day=d.getDate(),dow=DOWS[d.getDay()];
+    const dateTitle=`${year}년 ${month}월 ${day}일 (${dow})`;
+    const fields=[
+      {label:'본문말씀',val:l.verse},
+      {label:'3줄요약',val:l.summary},
+      {label:'핵심단어',val:l.keyword},
+      {label:'핵심이미지',val:l.image},
+      {label:'메시지',val:l.message},
+      {label:'기도제목 (적용/실천)',val:l.prayer},
+    ];
+    return `<div class="lsn-entry" id="le-${l.id}">
+      <div class="lsn-entry-header" onclick="toggleLesson(${l.id})">
+        <span class="lsn-entry-date">${dateTitle}</span>
+        <span class="lsn-entry-author">${escHtml(l.author||'')}</span>
+      </div>
+      <div class="lsn-body" id="lb-${l.id}">
+        ${fields.map(f=>f.val?`<div class="lsn-row">
+          <div class="lsn-row-label">${f.label}</div>
+          <div class="lsn-row-text">${escHtml(f.val)}</div>
+        </div>`:'').join('')}
+        <div style="display:flex;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+          <button class="btn sm secondary" onclick="openLessonEdit(${l.id})">✏️ 수정</button>
+          <button class="btn sm danger" onclick="deleteLesson(${l.id})">🗑️ 삭제</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+window.renderLessons = renderLessons;
+
+function toggleLesson(id){
+  document.getElementById('lb-'+id)?.classList.toggle('open');
+}
+
+function clearLessonFilter(){
+  ['lsn-filter-from','lsn-filter-to','lsn-filter-keyword'].forEach(i=>document.getElementById(i).value='');
+  renderLessons();
+}
+
+async function deleteLesson(id){
+  if(!confirm('이 교안을 삭제하시겠습니까?')) return;
+  await lsnDel(id); renderLessons();
+}
+
+let _lsnEditId=null;
+function openLessonEdit(id){
+  const l=lsnLocalAll().find(x=>x.id===id); if(!l) return;
+  _lsnEditId=id;
+  document.getElementById('lsn-edit-body').innerHTML=`
+    <div class="lsn-field"><span class="slabel">날짜</span><input type="date" id="le-date" value="${l.date}"></div>
+    <div class="lsn-field"><span class="slabel">작성자</span><input type="text" id="le-author" value="${escHtml(l.author||'')}"></div>
+    <div class="lsn-field"><span class="slabel">본문말씀</span><input type="text" id="le-verse" value="${escHtml(l.verse||'')}"></div>
+    <div class="lsn-field"><span class="slabel">3줄요약</span><textarea id="le-summary" style="min-height:80px">${escHtml(l.summary||'')}</textarea></div>
+    <div class="lsn-field"><span class="slabel">핵심단어</span><input type="text" id="le-keyword" value="${escHtml(l.keyword||'')}"></div>
+    <div class="lsn-field"><span class="slabel">핵심이미지</span><input type="text" id="le-image" value="${escHtml(l.image||'')}"></div>
+    <div class="lsn-field"><span class="slabel">메시지</span><textarea id="le-message" style="min-height:120px">${escHtml(l.message||'')}</textarea></div>
+    <div class="lsn-field"><span class="slabel">기도제목 (적용/실천)</span><textarea id="le-prayer" style="min-height:80px">${escHtml(l.prayer||'')}</textarea></div>`;
+  document.getElementById('lsn-edit-overlay').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+
+function closeLessonEdit(){
+  document.getElementById('lsn-edit-overlay').classList.remove('open');
+  document.body.style.overflow=''; _lsnEditId=null;
+}
+
+async function saveLessonEdit(){
+  const orig=lsnLocalAll().find(l=>l.id===_lsnEditId); if(!orig) return;
+  const updated={...orig,
+    date:document.getElementById('le-date').value,
+    author:document.getElementById('le-author').value.trim(),
+    verse:document.getElementById('le-verse').value.trim(),
+    summary:document.getElementById('le-summary').value.trim(),
+    keyword:document.getElementById('le-keyword').value.trim(),
+    image:document.getElementById('le-image').value.trim(),
+    message:document.getElementById('le-message').value.trim(),
+    prayer:document.getElementById('le-prayer').value.trim()
+  };
+  if(!updated.date){alert('날짜를 선택해주세요.');return;}
+  await lsnSave(updated); closeLessonEdit(); renderLessons();
+}
+
+/* ════════════════════════ CHIEF — PRAYER ══════════════════════ */
+async function runPrayerReport(){
+  const nameQ=(document.getElementById('prayer-name').value||'').trim().toLowerCase();
+  const from=document.getElementById('prayer-from').value;
+  const to=document.getElementById('prayer-to').value;
+  const cont=document.getElementById('prayer-report');
+  cont.innerHTML='<div class="empty-state"><span class="spinner dark"></span></div>';
+  let arr=await getAllRecords();
+  if(from) arr=arr.filter(r=>r.weekStart>=from);
+  if(to)   arr=arr.filter(r=>r.weekStart<=to);
+  const results=[];
+  arr.forEach(rec=>{
+    rec.members.filter((m,i)=>!(m.isTeacher||i===0)).forEach(m=>{
+      if(!m.notes) return;
+      if(nameQ&&!(m.name||'').toLowerCase().includes(nameQ)) return;
+      results.push({name:m.name||'?',className:rec.className,week:rec.weekStart,notes:m.notes});
+    });
+  });
+  if(!results.length){cont.innerHTML='<div class="empty-state">기도제목이 없습니다.</div>';return;}
+  cont.innerHTML=results.map(r=>`
+    <div class="chief-card" style="margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="font-size:14px;font-weight:700;color:var(--navy)">${escHtml(r.name)}</span>
+        <span class="role-badge student">${escHtml(r.className)}</span>
+        <span style="font-size:11px;color:var(--text3);margin-left:auto">${weekLabel(r.week)}</span>
+      </div>
+      <div style="font-size:13px;color:var(--text2);line-height:1.7;white-space:pre-wrap;padding:8px 10px;background:var(--gray1);border-radius:var(--r-sm)">${escHtml(r.notes)}</div>
+    </div>`).join('');
+}
+
 /* ════════════════════════ JOURNAL ═════════════════════════════ */
 
 async function saveJournal(){
@@ -1458,6 +1851,15 @@ async function saveJournalEdit(){
   const jnlFrom=new Date(today); jnlFrom.setMonth(jnlFrom.getMonth()-3);
   document.getElementById('jnl-filter-from').value=fmt(jnlFrom);
   document.getElementById('jnl-filter-to').value=fmt(today);
+
+  // 교안 날짜 필터 초기값: 시작=3개월 전, 종료=오늘
+  document.getElementById('lsn-filter-from').value=fmt(jnlFrom);
+  document.getElementById('lsn-filter-to').value=fmt(today);
+  document.getElementById('lsn-date').value=fmt(today);
+
+  // 기도제목 날짜 필터 초기값
+  document.getElementById('prayer-from').value=fmt(jnlFrom);
+  document.getElementById('prayer-to').value=fmt(today);
 
   const ago=new Date(sun); ago.setDate(sun.getDate()-21);
   document.getElementById('talent-from').value=fmt(ago);
