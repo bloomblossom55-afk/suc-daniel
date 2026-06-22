@@ -507,13 +507,20 @@ select{
 
 /* ═══════════════════════ COMPLETE BADGE ═══════════════════════ */
 .complete-label{
-  display:flex;align-items:center;gap:6px;
+  display:flex;align-items:center;gap:7px;
   font-size:12px;font-weight:700;cursor:pointer;
-  margin-left:auto;padding:4px 8px;border-radius:20px;
+  margin-left:auto;padding:5px 10px;border-radius:20px;
   border:1.5px solid var(--gray3);color:var(--text3);
-  transition:all .15s;user-select:none}
+  background:#fff;transition:all .2s;user-select:none}
 .complete-label input{display:none}
+.complete-label .cb-box{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:17px;height:17px;border-radius:4px;
+  border:2px solid var(--gray3);background:#fff;
+  flex-shrink:0;transition:all .2s}
 .complete-label.done{background:var(--green-l);border-color:var(--green);color:#1a7a50}
+.complete-label.done .cb-box{
+  background:var(--green);border-color:var(--green);color:#fff}
 .status-badge{
   font-size:10px;font-weight:700;padding:2px 8px;
   border-radius:20px;white-space:nowrap}
@@ -668,6 +675,8 @@ select{
     </div>
     <div id="prayer-report"></div>
 
+  </div><!-- /tab-chief -->
+
   <!-- ═══════════════════ 예배일지 탭 ═══════════════════ -->
   <div class="page" id="tab-journal">
 
@@ -711,16 +720,14 @@ select{
       </div>
       <div style="display:flex;gap:8px">
         <input type="text" id="jnl-filter-keyword"
-          placeholder="🔍 내용 · 설교자 검색"
+          placeholder="🔍 내용 검색"
           style="flex:1" oninput="renderJournals()">
       </div>
     </div>
 
     <!-- 일지 목록 -->
     <div id="journal-list"></div>
-  </div>
-
-</div><!-- /app -->
+  </div><!-- /tab-journal -->
 
   <!-- ═══════════════════ 교안 탭 ═══════════════════ -->
   <div class="page" id="tab-lesson">
@@ -787,7 +794,7 @@ select{
 
     <!-- 교안 목록 -->
     <div id="lesson-list"></div>
-  </div>
+  </div><!-- /tab-lesson -->
 
 </div><!-- /app -->
 
@@ -980,7 +987,8 @@ function buildMemberCard({role,data,container,studentIndex,removable}){
     <label class="complete-label${data&&data.completed?' done':''}" id="cl-${id}"
       onclick="toggleComplete(this)">
       <input type="checkbox" class="complete-check"${data&&data.completed?' checked':''}>
-      <span class="complete-text">${data&&data.completed?'✅ 완료':'⬜ 미완'}</span>
+      <span class="cb-box">${data&&data.completed?'✓':''}</span>
+      <span class="complete-text">${data&&data.completed?'완료':'미완'}</span>
     </label>`:'';
 
   const notesVal=(data&&data.notes||'').replace(/"/g,'&quot;');
@@ -1030,7 +1038,8 @@ function toggleComplete(el){
   el.classList.toggle('done');
   const cb=el.querySelector('.complete-check');
   cb.checked=!cb.checked;
-  el.querySelector('.complete-text').textContent=cb.checked?'✅ 완료':'⬜ 미완';
+  el.querySelector('.complete-text').textContent=cb.checked?'완료':'미완';
+  el.querySelector('.cb-box').textContent=cb.checked?'✓':'';
 }
 
 function toggleNote(btn){
@@ -1169,16 +1178,16 @@ function buildViewPanel(rec,opts={}){
     const role=isT?'선생님':`어린이 ${mi}`;
     const topChecks=isT?'':`
       <div class="top-checks">
-        ${m.sunday?`<span class="check-item">
-          <span class="ro-check on">✓</span> 주일출석
-        </span>`:''}
-        ${m.offering?`<span class="check-item">
-          <span class="ro-check on">✓</span> 예물
-        </span>`:''}
-        ${(m.special||0)>0?`<span class="special-wrap">
+        <span class="check-item">
+          <span class="ro-check${m.sunday?' on':''}">✓</span> 주일출석
+        </span>
+        <span class="check-item">
+          <span class="ro-check${m.offering?' on':''}">✓</span> 예물
+        </span>
+        <span class="special-wrap">
           <span>특별달란트</span>
-          <span style="background:var(--amber);color:#fff;font-size:12px;font-weight:700;padding:3px 9px;border-radius:12px">${m.special}</span>
-        </span>`:''}
+          <span style="background:${(m.special||0)>0?'var(--amber)':'var(--gray2)'};color:${(m.special||0)>0?'#fff':'var(--text3)'};font-size:12px;font-weight:700;padding:3px 9px;border-radius:12px">${m.special||0}</span>
+        </span>
       </div>`;
     const dayThs=DAYS.map(d=>`<th>${d}</th>`).join('');
     const clRows=CHECKS.map(c=>{
@@ -1345,8 +1354,16 @@ async function openEdit(id){
 }
 
 function editAddTeacher(){
-  buildMemberCard({role:'teacher',data:null,
-    container:document.getElementById('edit-members'),removable:true});
+  const cont=document.getElementById('edit-members');
+  // 어린이 카드 중 첫 번째 앞에 삽입 (선생님은 항상 위에)
+  const firstStudent=cont.querySelector('.mcard.is-student');
+  const div=document.createElement('div'); // 임시
+  buildMemberCard({role:'teacher',data:null,container:cont,removable:true});
+  // 방금 추가된 카드(마지막)를 firstStudent 앞으로 이동
+  const newCard=cont.lastElementChild;
+  if(firstStudent && newCard!==firstStudent){
+    cont.insertBefore(newCard, firstStudent);
+  }
 }
 
 function editAddStudent(){
@@ -1395,29 +1412,39 @@ async function runTeacherReport(){
   const dayThs=DAYS.map(d=>`<th>${d}</th>`).join('');
   let cardsHtml='';
   arr.forEach(rec=>{
-    const t=rec.members.find((m,i)=>m.isTeacher||i===0); if(!t) return;
-    const clRows=CHECKS.map(c=>{
-      const cells=(t[c.key]||[]).map(v=>
-        `<td>${v?'<span style="color:var(--green);font-weight:700">✓</span>':''}</td>`
-      ).join('');
-      return `<tr><td class="rl">${c.label}</td>${cells}</tr>`;
-    }).join('');
-    const notesHtml=t.notes
-      ?`<div style="margin-top:8px;padding:7px 10px;background:#fffdf0;border-radius:var(--r-sm);border:1px solid #f0e8b0;font-size:12px;color:var(--text2)">📝 ${t.notes}</div>`:'';
-    cardsHtml+=`
-      <div class="mcard is-teacher" style="margin-bottom:10px">
-        <div class="mcard-header">
-          <span style="font-size:15px;font-weight:700;color:var(--navy)">${rec.className} ${t.name||'선생님'}</span>
-          <span class="role-badge teacher">선생님</span>
-        </div>
-        <div class="cl-wrap">
-          <table class="cl-table">
-            <thead><tr><th style="width:1%"></th>${dayThs}</tr></thead>
-            <tbody>${clRows}</tbody>
-          </table>
-        </div>
-        ${notesHtml}
-      </div>`;
+    // isTeacher인 모든 멤버 조회 (추가 선생님 포함)
+    const teachers=rec.members.filter((m,i)=>m.isTeacher||(i===0&&!m.isTeacher===false));
+    // 실제로는 isTeacher 플래그 기반으로 모든 선생님
+    const allTeachers=rec.members.filter((m,i)=>m.isTeacher||i===0);
+    allTeachers.forEach(t=>{
+      if(!t) return;
+      const clRows=CHECKS.map(c=>{
+        const cells=(t[c.key]||[]).map(v=>
+          `<td>${v?'<span style="color:var(--green);font-weight:700">✓</span>':''}</td>`
+        ).join('');
+        return `<tr><td class="rl">${c.label}</td>${cells}</tr>`;
+      }).join('');
+      const notesHtml=t.notes
+        ?`<div style="margin-top:8px;padding:7px 10px;background:#fffdf0;border-radius:var(--r-sm);border:1px solid #f0e8b0;font-size:12px;color:var(--text2)">📝 ${t.notes}</div>`:'';
+      const completedBadge=t.completed
+        ?`<span style="font-size:11px;background:#e8f8f1;color:#1a7a50;padding:2px 8px;border-radius:10px;font-weight:700;margin-left:8px">✅ 완료</span>`
+        :`<span style="font-size:11px;background:var(--gray2);color:var(--text3);padding:2px 8px;border-radius:10px;font-weight:700;margin-left:8px">미완</span>`;
+      cardsHtml+=`
+        <div class="mcard is-teacher" style="margin-bottom:10px">
+          <div class="mcard-header">
+            <span style="font-size:15px;font-weight:700;color:var(--navy)">${rec.className} ${t.name||'선생님'}</span>
+            <span class="role-badge teacher">선생님</span>
+            ${completedBadge}
+          </div>
+          <div class="cl-wrap">
+            <table class="cl-table">
+              <thead><tr><th style="width:1%"></th>${dayThs}</tr></thead>
+              <tbody>${clRows}</tbody>
+            </table>
+          </div>
+          ${notesHtml}
+        </div>`;
+    });
   });
 
   cont.innerHTML=`<div id="teacher-report-content">
@@ -1555,8 +1582,9 @@ async function saveLesson(){
   try{
     await lsnSave(l);
     btn.disabled=false; btn.innerHTML='💾 교안 저장';
-    ['lsn-date','lsn-author','lsn-verse','lsn-keyword','lsn-image'].forEach(i=>document.getElementById(i).value='');
+    ['lsn-author','lsn-verse','lsn-keyword','lsn-image'].forEach(i=>document.getElementById(i).value='');
     ['lsn-summary','lsn-message','lsn-prayer'].forEach(i=>document.getElementById(i).value='');
+    document.getElementById('lsn-date').value=new Date().toISOString().split('T')[0];
     await renderLessons();
     document.getElementById('lesson-list').scrollIntoView({behavior:'smooth',block:'start'});
     alert('저장되었습니다!');
@@ -1687,6 +1715,8 @@ async function runPrayerReport(){
       results.push({name:m.name||'?',className:rec.className,week:rec.weekStart,notes:m.notes});
     });
   });
+  // 이름 비우면 전체 → 가나다순 정렬
+  if(!nameQ) results.sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
   if(!results.length){cont.innerHTML='<div class="empty-state">기도제목이 없습니다.</div>';return;}
   cont.innerHTML=results.map(r=>`
     <div class="chief-card" style="margin-bottom:8px">
