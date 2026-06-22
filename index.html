@@ -506,25 +506,30 @@ select{
 }
 
 /* ═══════════════════════ COMPLETE BADGE ═══════════════════════ */
-.complete-label{
-  display:flex;align-items:center;gap:7px;
-  font-size:12px;font-weight:700;cursor:pointer;
-  margin-left:auto;padding:5px 10px;border-radius:20px;
-  border:1.5px solid var(--gray3);color:var(--text3);
-  background:#fff;transition:all .2s;user-select:none}
-.complete-label input{display:none}
-.complete-label .cb-box{
+/* 미완: 회색 테두리 + 회색 빈박스 + 회색글씨 */
+/* 완료: 파란 테두리 + 파란채움박스 + 흰체크 + 파란글씨 */
+.cbtn{
+  display:inline-flex;align-items:center;gap:8px;
+  margin-left:auto;padding:5px 13px;border-radius:20px;
+  border:2px solid #b0b4c4;background:#fff;
+  font-size:13px;font-weight:600;color:#b0b4c4;
+  cursor:pointer;user-select:none;transition:border-color .15s,color .15s}
+.cbtn__box{
+  width:18px;height:18px;border-radius:4px;
+  border:2px solid #b0b4c4;background:#fff;
   display:inline-flex;align-items:center;justify-content:center;
-  width:17px;height:17px;border-radius:4px;
-  border:2px solid var(--gray3);background:#fff;
-  flex-shrink:0;transition:all .2s}
-.complete-label.done{background:var(--blue-xl);border-color:var(--blue);color:var(--blue)}
-.complete-label.done .cb-box{
-  background:var(--blue);border-color:var(--blue);color:#fff}
+  font-size:12px;font-weight:900;color:#fff;
+  transition:background .15s,border-color .15s;flex-shrink:0}
+/* 완료 상태 */
+.cbtn.is-done{border-color:#2952B3;color:#2952B3}
+.cbtn.is-done .cbtn__box{background:#2952B3;border-color:#2952B3}
+/* 숨김 */
+.cbtn input{display:none}
+/* status badge (목록용) */
 .status-badge{
   font-size:10px;font-weight:700;padding:2px 8px;
   border-radius:20px;white-space:nowrap}
-.status-badge.done{background:var(--blue-xl);color:var(--blue)}
+.status-badge.done{background:#eef3ff;color:#2952B3}
 .status-badge.todo{display:none}
 
 /* ═══════════════════════ LESSON TAB ═══════════════════════════ */
@@ -984,12 +989,10 @@ function buildMemberCard({role,data,container,studentIndex,removable}){
     </div>`;
 
   const completeLabel=(isT && !removable)?`
-    <label class="complete-label${data&&data.completed?' done':''}" id="cl-${id}"
-      onclick="toggleComplete(this)">
-      <input type="checkbox" class="complete-check"${data&&data.completed?' checked':''}>
-      <span class="cb-box">${data&&data.completed?'✓':''}</span>
-      <span class="complete-text">${data&&data.completed?'완료':'미완'}</span>
-    </label>`:'';
+    <div class="cbtn${data&&data.completed?' is-done':''}" onclick="toggleComplete(this)">
+      <span class="cbtn__box">${data&&data.completed?'✓':''}</span>
+      <span class="cbtn__txt">${data&&data.completed?'완료':'미완'}</span>
+    </div>`:'';
 
   const notesVal=(data&&data.notes||'').replace(/"/g,'&quot;');
   const removeBtn=removable
@@ -1035,11 +1038,9 @@ function addStudent(data){
 }
 
 function toggleComplete(el){
-  el.classList.toggle('done');
-  const cb=el.querySelector('.complete-check');
-  cb.checked=!cb.checked;
-  el.querySelector('.complete-text').textContent=cb.checked?'완료':'미완';
-  el.querySelector('.cb-box').textContent=cb.checked?'✓':'';
+  const isDone = el.classList.toggle('is-done');
+  el.querySelector('.cbtn__box').textContent = isDone ? '✓' : '';
+  el.querySelector('.cbtn__txt').textContent = isDone ? '완료' : '미완';
 }
 
 function toggleNote(btn){
@@ -1064,7 +1065,7 @@ function collectMembersFrom(container){
     const sunday=isT?false:!!(card.querySelector('[data-ck="sunday"]')?.checked);
     const offering=isT?false:!!(card.querySelector('[data-ck="offering"]')?.checked);
     const special=isT?0:parseInt(card.querySelector('[data-ck="special"]')?.value||0);
-    const completed=isT?!!(card.querySelector('.complete-check')?.checked):false;
+    const completed=isT?card.querySelector('.cbtn')?.classList.contains('is-done')??false:false;
     const chk={};
     CHECKS.forEach(c=>{chk[c.key]=[false,false,false,false,false,false];});
     card.querySelectorAll('input[type=checkbox][data-ck][data-di]').forEach(cb=>{
@@ -1137,7 +1138,7 @@ async function renderRecordsList(){
       <div class="rec-item-body" onclick="viewRecord(${r.id})">
         <div class="rec-title" style="display:flex;align-items:center;gap:8px">
           ${r.weekStart.replace(/-/g,'.')} ${r.className}
-          <span class="status-badge ${done?'done':'todo'}">${done?'✅ 완료':'⬜ 미완'}</span>
+          ${done?'<span class="status-badge done">완료</span>':''}
         </div>
         <div class="rec-meta">${weekLabel(r.weekStart)} · ${r.members.length}명</div>
       </div>
@@ -1350,7 +1351,7 @@ async function openEdit(id){
     const isT=m.isTeacher||mi===0;
     if(isT){
       teacherCount++;
-      buildMemberCard({role:'teacher',data:m,container:cont,removable:teacherCount>1});
+      buildMemberCard({role:'teacher',data:m,container:cont,removable:false});
     }
     else { ec++; buildMemberCard({role:'student',data:m,container:cont,studentIndex:ec,removable:true}); }
   });
