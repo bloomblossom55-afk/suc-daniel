@@ -518,14 +518,14 @@ select{
   width:17px;height:17px;border-radius:4px;
   border:2px solid var(--gray3);background:#fff;
   flex-shrink:0;transition:all .2s}
-.complete-label.done{background:var(--green-l);border-color:var(--green);color:#1a7a50}
+.complete-label.done{background:var(--blue-xl);border-color:var(--blue);color:var(--blue)}
 .complete-label.done .cb-box{
-  background:var(--green);border-color:var(--green);color:#fff}
+  background:var(--blue);border-color:var(--blue);color:#fff}
 .status-badge{
   font-size:10px;font-weight:700;padding:2px 8px;
   border-radius:20px;white-space:nowrap}
-.status-badge.done{background:var(--green-l);color:#1a7a50}
-.status-badge.todo{background:var(--gray2);color:var(--text3)}
+.status-badge.done{background:var(--blue-xl);color:var(--blue)}
+.status-badge.todo{display:none}
 
 /* ═══════════════════════ LESSON TAB ═══════════════════════════ */
 .lsn-write-card{
@@ -1204,7 +1204,6 @@ function buildViewPanel(rec,opts={}){
         <div class="mcard-header">
           <span style="font-size:15px;font-weight:700;color:var(--navy)">${m.name||'(이름없음)'}</span>
           <span class="role-badge ${isT?'teacher':'student'}">${role}</span>
-          ${isT?`<span class="status-badge ${m.completed?'done':'todo'}" style="margin-left:auto">${m.completed?'✅ 완료':'⬜ 미완'}</span>`:''}
           ${talentBadge}
         </div>
         ${topChecks}
@@ -1247,7 +1246,11 @@ function buildViewPanel(rec,opts={}){
   return `<div class="view-panel" id="vp-${rec.id}">
     <div class="vp-topbar">
       <div>
-        <div class="vp-title">${rec.weekStart.replace(/-/g,'.')} ${rec.className}</div>
+        <div class="vp-title" style="display:flex;align-items:center;gap:8px">
+          ${rec.weekStart.replace(/-/g,'.')} ${rec.className}
+          ${rec.members.find((m,i)=>m.isTeacher||i===0)?.completed
+            ?`<span class="status-badge done">완료</span>`:''}
+        </div>
         <div class="vp-week">${weekLabel(rec.weekStart)}</div>
       </div>
       ${topBtns}
