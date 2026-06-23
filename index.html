@@ -702,22 +702,12 @@ select{
       <div class="section-heading">⭐ 어린이 달란트 누적 합계</div>
       <div class="chief-talent-group">
         <div>
-          <span class="slabel">시작 주간</span>
-          <div class="wp-wrap" id="wp-talent-from">
-            <button type="button" class="wp-input" id="wp-talent-from-btn"
-              onclick="wpToggle('wp-talent-from')">주간 선택</button>
-            <div class="wp-dropdown" id="wp-talent-from-drop"></div>
-          </div>
-          <input type="hidden" id="talent-from">
+          <span class="slabel">시작 날짜</span>
+          <input type="date" id="talent-from">
         </div>
         <div>
-          <span class="slabel">종료 주간</span>
-          <div class="wp-wrap" id="wp-talent-to">
-            <button type="button" class="wp-input" id="wp-talent-to-btn"
-              onclick="wpToggle('wp-talent-to')">주간 선택</button>
-            <div class="wp-dropdown" id="wp-talent-to-drop"></div>
-          </div>
-          <input type="hidden" id="talent-to">
+          <span class="slabel">종료 날짜</span>
+          <input type="date" id="talent-to">
         </div>
         <div style="align-self:flex-end">
           <button class="btn primary" onclick="runTalentReport()">조회</button>
@@ -734,22 +724,12 @@ select{
       </div>
       <div class="chief-talent-group">
         <div>
-          <span class="slabel">시작 주간</span>
-          <div class="wp-wrap" id="wp-prayer-from">
-            <button type="button" class="wp-input" id="wp-prayer-from-btn"
-              onclick="wpToggle('wp-prayer-from')">주간 선택</button>
-            <div class="wp-dropdown" id="wp-prayer-from-drop"></div>
-          </div>
-          <input type="hidden" id="prayer-from">
+          <span class="slabel">시작 날짜</span>
+          <input type="date" id="prayer-from">
         </div>
         <div>
-          <span class="slabel">종료 주간</span>
-          <div class="wp-wrap" id="wp-prayer-to">
-            <button type="button" class="wp-input" id="wp-prayer-to-btn"
-              onclick="wpToggle('wp-prayer-to')">주간 선택</button>
-            <div class="wp-dropdown" id="wp-prayer-to-drop"></div>
-          </div>
-          <input type="hidden" id="prayer-to">
+          <span class="slabel">종료 날짜</span>
+          <input type="date" id="prayer-to">
         </div>
         <div style="align-self:flex-end">
           <button class="btn primary" onclick="runPrayerReport()">조회</button>
@@ -1823,13 +1803,18 @@ async function printTeacherReport(){
 
 /* ════════════════════════ CHIEF — TALENT ══════════════════════ */
 async function runTalentReport(){
-  const from=document.getElementById('talent-from').value;  // 이미 월요일
-  const to=document.getElementById('talent-to').value;      // 이미 월요일
-  if(!from||!to){alert('시작/종료 주간을 모두 선택해주세요.');return;}
+  const from=document.getElementById('talent-from').value;
+  const to=document.getElementById('talent-to').value;
+  if(!from||!to){alert('시작/종료 날짜를 모두 선택해주세요.');return;}
   const cont=document.getElementById('talent-report');
   cont.innerHTML='<div class="empty-state"><span class="spinner dark"></span></div>';
-  // weekStart(월요일) 기준으로 from 주 이상, to 주 이하 레코드 조회
-  const arr=(await getAllRecords()).filter(r=>r.weekStart>=from&&r.weekStart<=to);
+  // weekStart(월요일)가 속하는 주의 일요일이 from~to 구간에 포함되는 레코드 조회
+  // 즉 weekStart(월요일)+6일(일요일) >= from 이고 weekStart(월요일) <= to
+  const arr=(await getAllRecords()).filter(r=>{
+    const sun=new Date(r.weekStart+'T00:00:00'); sun.setDate(sun.getDate()+6);
+    const sunStr=sun.toISOString().split('T')[0];
+    return sunStr>=from && r.weekStart<=to;
+  });
   if(!arr.length){cont.innerHTML='<div class="empty-state">해당 기간 데이터가 없습니다.</div>';return;}
 
   const map={};
@@ -1845,9 +1830,7 @@ async function runTalentReport(){
     if(!byClass[s.className]) byClass[s.className]=[];
     byClass[s.className].push(s);
   });
-  // 표시용: 시작주 일요일 ~ 종료주 일요일
-  const fromSun=weekTitleDate(from), toSun=weekTitleDate(to);
-  let html=`<div style="font-size:12px;color:var(--text3);margin-bottom:12px">${fromSun} ~ ${toSun} 누적</div>`;
+  let html=`<div style="font-size:12px;color:var(--text3);margin-bottom:12px">${from} ~ ${to} 누적</div>`;
   Object.entries(byClass).forEach(([cls,students])=>{
     students.sort((a,b)=>b.total-a.total);
     html+=`<div class="chief-card" style="margin-bottom:10px">
@@ -2037,14 +2020,19 @@ async function saveLessonEdit(){
 /* ════════════════════════ CHIEF — PRAYER ══════════════════════ */
 async function runPrayerReport(){
   const nameQ=(document.getElementById('prayer-name').value||'').trim().toLowerCase();
-  const from=document.getElementById('prayer-from').value;  // 이미 월요일
-  const to=document.getElementById('prayer-to').value;      // 이미 월요일
+  const from=document.getElementById('prayer-from').value;
+  const to=document.getElementById('prayer-to').value;
   const cont=document.getElementById('prayer-report');
   cont.innerHTML='<div class="empty-state"><span class="spinner dark"></span></div>';
   let arr=await getAllRecords();
-  // weekStart(월요일)와 직접 비교
-  if(from) arr=arr.filter(r=>r.weekStart>=from);
-  if(to)   arr=arr.filter(r=>r.weekStart<=to);
+  // weekStart(월요일)가 속하는 주의 일요일이 from~to 구간에 포함되는 레코드 필터
+  if(from||to) arr=arr.filter(r=>{
+    const sun=new Date(r.weekStart+'T00:00:00'); sun.setDate(sun.getDate()+6);
+    const sunStr=sun.toISOString().split('T')[0];
+    if(from && sunStr<from) return false;
+    if(to && r.weekStart>to) return false;
+    return true;
+  });
   const results=[];
   arr.forEach(rec=>{
     rec.members.filter((m,i)=>!(m.isTeacher||i===0)).forEach(m=>{
@@ -2236,32 +2224,11 @@ async function saveJournalEdit(){
   document.getElementById('lsn-filter-to').value=fmt(today);
   document.getElementById('lsn-date').value=fmt(today);
 
-  // 기도제목 날짜 필터 초기값
+  // 달란트/기도제목 날짜 필터 초기값: 3개월 전 ~ 오늘
+  document.getElementById('talent-from').value=fmt(jnlFrom);
+  document.getElementById('talent-to').value=fmt(today);
   document.getElementById('prayer-from').value=fmt(jnlFrom);
   document.getElementById('prayer-to').value=fmt(today);
-
-  // 달란트/기도제목 위젯 초기화 (기본: 최근 4주)
-  const ago=new Date(today);
-  const agoDay=ago.getDay();
-  ago.setDate(ago.getDate()-21+(agoDay===0?-6:1-agoDay)); // 4주 전 월요일
-  const agoMon=localDateStr(ago);
-  const curMon=s; // 이번주 월요일
-
-  wpInit('wp-talent-from', agoMon);
-  wpInit('wp-talent-to',   curMon);
-  wpInit('wp-prayer-from', agoMon);
-  wpInit('wp-prayer-to',   curMon);
-
-  const agoLabel=weekLabel(agoMon);
-  const curLabel=weekLabel(curMon);
-  document.getElementById('wp-talent-from-btn').textContent=agoLabel;
-  document.getElementById('wp-talent-to-btn').textContent=curLabel;
-  document.getElementById('wp-prayer-from-btn').textContent=agoLabel;
-  document.getElementById('wp-prayer-to-btn').textContent=curLabel;
-  document.getElementById('talent-from').value=agoMon;
-  document.getElementById('talent-to').value=curMon;
-  document.getElementById('prayer-from').value=agoMon;
-  document.getElementById('prayer-to').value=curMon;
 })();
 </script>
 </body>
