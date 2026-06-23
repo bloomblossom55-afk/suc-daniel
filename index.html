@@ -572,34 +572,49 @@ select{
   width:100%;padding:11px 13px;font-size:14px;font-family:inherit;
   border:1.5px solid var(--border);border-radius:var(--r-sm);
   background:#fff;color:var(--text);cursor:pointer;
-  outline:none;text-align:left;transition:border-color .15s}
-.wp-input:focus,.wp-input.open{border-color:var(--blue);box-shadow:0 0 0 3px rgba(41,82,179,.12)}
+  outline:none;text-align:left;transition:border-color .15s;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wp-input.open{border-color:var(--blue);box-shadow:0 0 0 3px rgba(41,82,179,.12)}
 .wp-dropdown{
-  display:none;position:absolute;top:calc(100% + 6px);left:0;z-index:999;
+  display:none;position:absolute;top:calc(100% + 6px);left:0;z-index:9999;
   background:#fff;border:1.5px solid var(--border);border-radius:var(--r);
-  box-shadow:0 8px 24px rgba(26,46,90,.15);padding:12px;min-width:280px}
+  box-shadow:0 8px 24px rgba(26,46,90,.18);padding:14px;min-width:290px}
 .wp-dropdown.open{display:block}
 .wp-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
 .wp-nav-btn{
-  background:none;border:none;cursor:pointer;padding:4px 10px;
-  font-size:18px;color:var(--text2);border-radius:var(--r-sm);line-height:1}
+  background:none;border:1px solid var(--border);cursor:pointer;
+  padding:4px 12px;font-size:16px;color:var(--text2);
+  border-radius:var(--r-sm);line-height:1.2;transition:background .12s}
 .wp-nav-btn:hover{background:var(--gray1)}
 .wp-nav-title{font-size:14px;font-weight:700;color:var(--navy)}
-.wp-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.wp-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px}
 .wp-dow{text-align:center;font-size:10px;font-weight:700;
-  color:var(--text3);padding:4px 0;letter-spacing:.03em}
-.wp-dow.sun{color:#e05}
+  color:var(--text3);padding:5px 0 4px;letter-spacing:.02em}
+.wp-dow.wp-sun{color:#d03}
 .wp-day{
-  text-align:center;padding:7px 2px;font-size:13px;
-  border-radius:0;cursor:pointer;color:var(--text);
-  transition:background .1s,color .1s;position:relative}
-.wp-day.other{color:var(--gray3)}
-.wp-day.today{font-weight:700;color:var(--blue)}
-.wp-day.in-week{background:var(--blue-xl);color:var(--blue)}
-.wp-day.week-start{border-radius:var(--r-sm) 0 0 var(--r-sm);background:var(--blue);color:#fff;font-weight:700}
-.wp-day.week-end{border-radius:0 var(--r-sm) var(--r-sm) 0;background:var(--blue);color:#fff;font-weight:700}
-.wp-day:hover .wp-day-inner{background:var(--gray2);border-radius:4px}
-.wp-day-inner{padding:2px 0;border-radius:0}
+  text-align:center;padding:5px 1px;
+  cursor:pointer;position:relative;user-select:none;
+  transition:background .08s}
+.wp-day-num{
+  display:inline-block;width:28px;height:28px;line-height:28px;
+  font-size:13px;border-radius:50%;color:var(--text)}
+.wp-day.other .wp-day-num{color:var(--gray3)}
+.wp-day.today .wp-day-num{font-weight:700;border:1.5px solid var(--blue);color:var(--blue)}
+/* 주간 하이라이트 */
+.wp-day.in-week{background:var(--blue-xl)}
+.wp-day.in-week .wp-day-num{color:var(--blue)}
+.wp-day.week-start{background:var(--blue-xl);border-radius:6px 0 0 6px}
+.wp-day.week-start .wp-day-num{background:var(--blue);color:#fff;font-weight:700}
+.wp-day.week-end{background:var(--blue-xl);border-radius:0 6px 6px 0}
+.wp-day.week-end .wp-day-num{background:var(--blue);color:#fff;font-weight:700}
+/* hover는 살짝 연하게 */
+.wp-day.hovering.in-week{background:#e0ecff}
+.wp-day.hovering.week-start,.wp-day.hovering.week-end{background:#e0ecff}
+.wp-day.hovering.week-start .wp-day-num,
+.wp-day.hovering.week-end .wp-day-num{background:#5b88d4}
+.wp-sun .wp-day-num,.wp-day-num.wp-sun{color:#d03}
+.wp-day.week-start .wp-day-num.wp-sun,
+.wp-day.week-end .wp-day-num.wp-sun{color:#fff}
 </style>
 </head>
 <body>
@@ -1004,26 +1019,53 @@ function updateWeekLabel(iId,hId){
 function snapSunday(iId,hId){ updateWeekLabel(iId,hId); }
 
 /* ════════════════════════ WEEK PICKER ════════════════════════ */
-const _wpState={};  // {wrapId: {year,month,selectedMonday}}
+// 달력: 일-토 구조 / 선택 단위: 월(Mon)~일(Sun)
+// ds를 받아 해당 주 월요일 반환 (toMonday와 동일, 명시적으로 사용)
+function wpGetMon(ds){
+  const d=new Date(ds+'T00:00:00'), day=d.getDay();
+  // day: 0=일,1=월,...,6=토
+  // 일요일이면 -6, 나머지는 -(day-1)
+  const diff = day===0 ? -6 : 1-day;
+  d.setDate(d.getDate()+diff);
+  return d.toISOString().split('T')[0];
+}
+function wpGetSun(monStr){
+  const d=new Date(monStr+'T00:00:00');
+  d.setDate(d.getDate()+6);
+  return d.toISOString().split('T')[0];
+}
+// ds 문자열을 Date로 (타임존 안전하게)
+function wpDate(s){ return new Date(s+'T00:00:00'); }
+// Date → YYYY-MM-DD
+function wpStr(d){ return d.toISOString().split('T')[0]; }
+
+const _wpState={};
 
 function wpInit(wrapId, initialMonday){
-  const d = initialMonday ? new Date(initialMonday+'T00:00:00') : new Date();
-  _wpState[wrapId]={year:d.getFullYear(), month:d.getMonth(), selectedMonday:initialMonday||null};
-  wpRender(wrapId);
+  // initialMonday가 없으면 오늘이 속한 주 월요일
+  const base = initialMonday || wpGetMon(wpStr(new Date()));
+  const d = wpDate(base);
+  _wpState[wrapId]={
+    year: d.getFullYear(),
+    month: d.getMonth(),
+    selectedMon: initialMonday||null,
+    hoverMon: null
+  };
+  if(document.getElementById(wrapId+'-drop'))
+    wpRender(wrapId);
 }
 
 function wpToggle(wrapId){
   const drop=document.getElementById(wrapId+'-drop');
   const btn=document.getElementById(wrapId+'-btn');
   const isOpen=drop.classList.contains('open');
-  // 다른 것 닫기
   document.querySelectorAll('.wp-dropdown.open').forEach(el=>el.classList.remove('open'));
   document.querySelectorAll('.wp-input.open').forEach(el=>el.classList.remove('open'));
   if(!isOpen){
+    if(!_wpState[wrapId]) wpInit(wrapId);
     drop.classList.add('open');
     btn.classList.add('open');
-    if(!_wpState[wrapId]) wpInit(wrapId);
-    else wpRender(wrapId);
+    wpRender(wrapId);
   }
 }
 
@@ -1037,112 +1079,120 @@ function wpNav(wrapId, delta){
   st.month+=delta;
   if(st.month>11){st.month=0;st.year++;}
   if(st.month<0){st.month=11;st.year--;}
+  st.hoverMon=null;
   wpRender(wrapId);
 }
 
 function wpRender(wrapId){
   const st=_wpState[wrapId];
   const drop=document.getElementById(wrapId+'-drop');
-  const today=new Date(); today.setHours(0,0,0,0);
-  const todayStr=today.toISOString().split('T')[0];
+  if(!drop) return;
 
-  const selMon=st.selectedMonday;
-  const selSun=selMon?toSunday(selMon):null;
+  // 오늘
+  const todayStr=wpStr(new Date());
 
-  // 달력 첫날(해당 월 1일의 주 시작 월요일)
-  const firstDay=new Date(st.year, st.month, 1);
-  const startDay=firstDay.getDay(); // 0=일
-  // 달력 시작: 월요일 기준이므로 1일이 무슨 요일인지에 따라 앞으로 당기기
-  const calStart=new Date(firstDay);
-  const backDays=startDay===0?6:startDay-1;
-  calStart.setDate(1-backDays);
+  // 표시할 선택 범위: hover 중이면 hover, 아니면 실제 선택
+  const activeMon = st.hoverMon || st.selectedMon;
+  const activeSun = activeMon ? wpGetSun(activeMon) : null;
 
-  const DOW=['월','화','수','목','금','토','일'];
+  // 달력 시작: 이 달 1일이 속한 주의 일요일
+  // 달력은 일(0)-토(6) 구조
+  const firstOfMonth = new Date(st.year, st.month, 1);
+  const firstDow = firstOfMonth.getDay(); // 0=일,1=월,...
+  // 달력 시작 = 1일에서 firstDow만큼 뒤로
+  const calStart = new Date(firstOfMonth);
+  calStart.setDate(1 - firstDow); // 일요일부터 시작
+
+  // 요일 헤더: 일-토
+  const DOW=['일','월','화','수','목','금','토'];
   let cells='';
-  const cur=new Date(calStart);
+  const cur = new Date(calStart);
+
   for(let i=0;i<42;i++){
-    const ds=cur.toISOString().split('T')[0];
-    const isOther=cur.getMonth()!==st.month;
-    const isToday=ds===todayStr;
-    const inWeek=selMon&&ds>=selMon&&ds<=selSun;
-    const isStart=ds===selMon;
-    const isEnd=ds===selSun;
+    const ds=wpStr(cur);
+    const isOther = cur.getMonth()!==st.month;
+    const isToday = ds===todayStr;
+
+    // 이 날짜의 주 월-일 범위
+    const dayMon=wpGetMon(ds);
+    const daySun=wpGetSun(dayMon);
+
+    // 활성(hover/선택) 범위에 포함되는지
+    const isInRange = activeMon && ds>=activeMon && ds<=activeSun;
+    const isRangeStart = ds===activeMon;  // 월요일
+    const isRangeEnd   = ds===activeSun;  // 일요일
+
+    // 실제 확정 선택 범위 (hover 아닐 때 진하게)
+    const isSelected = st.selectedMon && ds>=st.selectedMon && ds<=wpGetSun(st.selectedMon);
+
     let cls='wp-day';
     if(isOther) cls+=' other';
-    if(isToday) cls+=' today';
-    if(isStart) cls+=' week-start';
-    else if(isEnd) cls+=' week-end';
-    else if(inWeek) cls+=' in-week';
+    if(isToday&&!isInRange) cls+=' today';
+    if(isRangeStart) cls+=' week-start';
+    else if(isRangeEnd) cls+=' week-end';
+    else if(isInRange) cls+=' in-week';
+
+    // hover 중일 때는 연하게, 확정 선택은 진하게
+    if(st.hoverMon && isInRange) cls+=' hovering';
+
     const day=cur.getDate();
-    cells+=`<div class="${cls}" 
+    // 일요일(i%7===0) 빨간색
+    const isSunCol=(i%7===0);
+
+    cells+=`<div class="${cls}" data-ds="${ds}"
       onmouseenter="wpHover('${wrapId}','${ds}')"
       onmouseleave="wpHoverEnd('${wrapId}')"
       onclick="wpSelect('${wrapId}','${ds}')">
-      <div class="wp-day-inner">${day}</div>
+      <span class="wp-day-num${isSunCol?' wp-sun':''}">${day}</span>
     </div>`;
     cur.setDate(cur.getDate()+1);
   }
 
-  const monthNames=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+  const MONTHS=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
   drop.innerHTML=`
     <div class="wp-nav">
-      <button class="wp-nav-btn" onclick="wpNav('${wrapId}',-1)">‹</button>
-      <span class="wp-nav-title">${st.year}년 ${monthNames[st.month]}</span>
-      <button class="wp-nav-btn" onclick="wpNav('${wrapId}',1)">›</button>
+      <button class="wp-nav-btn" onclick="event.stopPropagation();wpNav('${wrapId}',-1)">‹</button>
+      <span class="wp-nav-title">${st.year}년 ${MONTHS[st.month]}</span>
+      <button class="wp-nav-btn" onclick="event.stopPropagation();wpNav('${wrapId}',1)">›</button>
     </div>
     <div class="wp-grid">
-      ${DOW.map((d,i)=>`<div class="wp-dow${i===6?' sun':''}">${d}</div>`).join('')}
+      ${DOW.map((d,i)=>`<div class="wp-dow${i===0?' wp-sun':''}">${d}</div>`).join('')}
       ${cells}
     </div>`;
 }
 
 function wpHover(wrapId, ds){
-  // 호버시 해당 주 임시 하이라이트
   const st=_wpState[wrapId];
-  const hoverMon=toMonday(ds);
-  const hoverSun=toSunday(hoverMon);
-  const drop=document.getElementById(wrapId+'-drop');
-  drop.querySelectorAll('.wp-day').forEach(el=>{
-    const onclick=el.getAttribute('onclick');
-    const m=onclick&&onclick.match(/'(\d{4}-\d{2}-\d{2})'/);
-    if(!m) return;
-    const d=m[1];
-    el.classList.remove('in-week','week-start','week-end');
-    // 기존 선택 유지
-    const selMon=st.selectedMonday;
-    const selSun=selMon?toSunday(selMon):null;
-    if(d===hoverMon) el.classList.add('week-start');
-    else if(d===hoverSun) el.classList.add('week-end');
-    else if(d>hoverMon&&d<hoverSun) el.classList.add('in-week');
-  });
+  st.hoverMon=wpGetMon(ds);
+  wpRender(wrapId);
 }
 
 function wpHoverEnd(wrapId){
-  // 호버 끝나면 선택된 주로 복원
+  _wpState[wrapId].hoverMon=null;
   wpRender(wrapId);
 }
 
 function wpSelect(wrapId, ds){
-  const mon=toMonday(ds);
+  const mon=wpGetMon(ds);
   const st=_wpState[wrapId];
-  st.selectedMonday=mon;
+  st.selectedMon=mon;
+  st.hoverMon=null;
   wpRender(wrapId);
   wpClose(wrapId);
 
-  // hidden input & 힌트 업데이트
+  const label=weekLabel(mon);
   if(wrapId==='wp-write'){
     document.getElementById('week-start').value=mon;
-    document.getElementById('week-label').textContent=weekLabel(mon);
-    document.getElementById('wp-write-btn').textContent=weekLabel(mon);
+    document.getElementById('week-label').textContent=label;
+    document.getElementById('wp-write-btn').textContent=label;
   } else if(wrapId==='wp-chief'){
     document.getElementById('chief-week').value=mon;
     const hint=document.getElementById('chief-week-hint');
-    if(hint) hint.textContent=weekLabel(mon);
-    document.getElementById('wp-chief-btn').textContent=weekLabel(mon);
+    if(hint) hint.textContent=label;
+    document.getElementById('wp-chief-btn').textContent=label;
   }
 }
 
-// 외부 클릭 시 닫기
 document.addEventListener('click',function(e){
   if(!e.target.closest('.wp-wrap')){
     document.querySelectorAll('.wp-dropdown.open').forEach(el=>el.classList.remove('open'));
