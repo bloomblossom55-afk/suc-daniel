@@ -1101,7 +1101,7 @@ async function saveRecord(){
   const groupNote=document.getElementById('group-note').value.trim();
   const btn=document.getElementById('save-btn');
   btn.disabled=true; btn.innerHTML='<span class="spinner"></span> 저장 중…';
-  const rec={id:Date.now(),className:cls,weekStart:week,
+  const rec={id:Date.now(),className:cls,weekStart:toMonday(week),
     savedAt:new Date().toISOString(),groupNote,members};
   try{
     await saveRec(rec);
@@ -1404,7 +1404,7 @@ async function saveEdit(){
   btn.disabled=true; btn.innerHTML='<span class="spinner"></span>';
   const arr=await getAllRecords();
   const orig=arr.find(r=>r.id===_editId);
-  const rec={...orig,className:cls,weekStart:week,
+  const rec={...orig,className:cls,weekStart:toMonday(week),
     savedAt:new Date().toISOString(),groupNote,members};
   try{
     await saveRec(rec);
@@ -1418,8 +1418,11 @@ async function saveEdit(){
 
 /* ════════════════════════ CHIEF — TEACHER ═════════════════════ */
 async function runTeacherReport(){
-  const week=document.getElementById('chief-week').value;
-  if(!week){alert('주간을 선택해주세요.');return;}
+  const raw=document.getElementById('chief-week').value;
+  if(!raw){alert('주간을 선택해주세요.');return;}
+  const week=toMonday(raw);
+  document.getElementById('chief-week').value=week;
+  updateWeekLabel('chief-week','chief-week-hint');
   const cont=document.getElementById('teacher-report');
   cont.innerHTML='<div class="empty-state"><span class="spinner dark"></span></div>';
   const arr=(await getAllRecords()).filter(r=>r.weekStart===week);
@@ -1905,9 +1908,9 @@ async function saveJournalEdit(){
   document.getElementById('prayer-from').value=fmt(jnlFrom);
   document.getElementById('prayer-to').value=fmt(today);
 
-  const ago=new Date(sun); ago.setDate(sun.getDate()-21);
+  const ago=new Date(today); ago.setDate(today.getDate()-21);
   document.getElementById('talent-from').value=fmt(ago);
-  document.getElementById('talent-to').value=s;
+  document.getElementById('talent-to').value=fmt(today);
 })();
 </script>
 </body>
