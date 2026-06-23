@@ -928,19 +928,20 @@ async function jnlDel(id){
 }
 
 /* ════════════════════════ DATE ════════════════════════════════ */
-function toSunday(s){
+function toMonday(s){
   const d=new Date(s),day=d.getDay();
-  if(day!==0) d.setDate(d.getDate()-day);
+  const diff=day===0?-6:1-day;
+  d.setDate(d.getDate()+diff);
   return d.toISOString().split('T')[0];
 }
 function weekLabel(s){
   const a=new Date(s),b=new Date(s); b.setDate(b.getDate()+6);
   const f=d=>`${d.getMonth()+1}/${d.getDate()}`;
-  return `${a.getFullYear()}년 ${f(a)}(일) ~ ${f(b)}(토)`;
+  return `${a.getFullYear()}년 ${f(a)}(월) ~ ${f(b)}(일)`;
 }
 function updateWeekLabel(iId,hId){
   const el=document.getElementById(iId); if(!el.value) return;
-  el.value=toSunday(el.value);
+  el.value=toMonday(el.value);
   document.getElementById(hId).textContent=weekLabel(el.value);
 }
 function snapSunday(iId,hId){ updateWeekLabel(iId,hId); }
@@ -1866,9 +1867,11 @@ async function saveJournalEdit(){
 /* ════════════════════════ INIT ════════════════════════════════ */
 (function(){
   const today=new Date();
-  const sun=new Date(today); sun.setDate(today.getDate()-today.getDay());
+  const mon=new Date(today);
+  const _day=today.getDay();
+  mon.setDate(today.getDate()+(_day===0?-6:1-_day));
   const fmt=d=>d.toISOString().split('T')[0];
-  const s=fmt(sun);
+  const s=fmt(mon);
 
   document.getElementById('week-start').value=s;
   document.getElementById('chief-week').value=s;
