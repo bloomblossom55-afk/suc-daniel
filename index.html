@@ -1808,11 +1808,10 @@ async function runTalentReport(){
   if(!from||!to){alert('시작/종료 날짜를 모두 선택해주세요.');return;}
   const cont=document.getElementById('talent-report');
   cont.innerHTML='<div class="empty-state"><span class="spinner dark"></span></div>';
-  // weekStart(월요일)가 속하는 주의 일요일이 from~to 구간에 포함되는 레코드 조회
-  // 즉 weekStart(월요일)+6일(일요일) >= from 이고 weekStart(월요일) <= to
+  const localFmt=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   const arr=(await getAllRecords()).filter(r=>{
     const sun=new Date(r.weekStart+'T00:00:00'); sun.setDate(sun.getDate()+6);
-    const sunStr=sun.toISOString().split('T')[0];
+    const sunStr=localFmt(sun);
     return sunStr>=from && r.weekStart<=to;
   });
   if(!arr.length){cont.innerHTML='<div class="empty-state">해당 기간 데이터가 없습니다.</div>';return;}
@@ -2025,10 +2024,10 @@ async function runPrayerReport(){
   const cont=document.getElementById('prayer-report');
   cont.innerHTML='<div class="empty-state"><span class="spinner dark"></span></div>';
   let arr=await getAllRecords();
-  // weekStart(월요일)가 속하는 주의 일요일이 from~to 구간에 포함되는 레코드 필터
+  const localFmt=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   if(from||to) arr=arr.filter(r=>{
     const sun=new Date(r.weekStart+'T00:00:00'); sun.setDate(sun.getDate()+6);
-    const sunStr=sun.toISOString().split('T')[0];
+    const sunStr=localFmt(sun);
     if(from && sunStr<from) return false;
     if(to && r.weekStart>to) return false;
     return true;
