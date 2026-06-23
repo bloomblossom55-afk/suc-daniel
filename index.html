@@ -935,7 +935,13 @@ function toMonday(s){
   return d.toISOString().split('T')[0];
 }
 function weekLabel(s){
-  const a=new Date(s),b=new Date(s); b.setDate(b.getDate()+6);
+  // s는 저장된 날짜(선택한 날짜의 월요일)
+  // 월요일로 보정 후 +6일 = 일요일
+  const a=new Date(s+'T00:00:00');
+  const aDay=a.getDay();
+  const diff=aDay===0?-6:1-aDay;
+  a.setDate(a.getDate()+diff);          // 월요일로 스냅
+  const b=new Date(a); b.setDate(a.getDate()+6); // 일요일
   const f=d=>`${d.getMonth()+1}/${d.getDate()}`;
   return `${a.getFullYear()}년 ${f(a)}(월) ~ ${f(b)}(일)`;
 }
@@ -1352,7 +1358,9 @@ async function openEdit(id){
     const isT=m.isTeacher||mi===0;
     if(isT){
       teacherCount++;
-      buildMemberCard({role:'teacher',data:m,container:cont,removable:false});
+      // 첫 번째 선생님만 removable:false (완료/미완 표시)
+      // 추가된 선생님(두 번째 이후)은 removable:true (삭제버튼 표시)
+      buildMemberCard({role:'teacher',data:m,container:cont,removable:teacherCount>1});
     }
     else { ec++; buildMemberCard({role:'student',data:m,container:cont,studentIndex:ec,removable:true}); }
   });
