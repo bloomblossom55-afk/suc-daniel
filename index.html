@@ -565,6 +565,41 @@ select{
   white-space:pre-wrap;word-break:break-word;
   background:#fff;border-radius:var(--r-sm);
   padding:9px 12px;border:1px solid var(--border)}
+
+/* ══════════════ WEEK PICKER ══════════════ */
+.wp-wrap{position:relative;display:inline-block;width:100%}
+.wp-input{
+  width:100%;padding:11px 13px;font-size:14px;font-family:inherit;
+  border:1.5px solid var(--border);border-radius:var(--r-sm);
+  background:#fff;color:var(--text);cursor:pointer;
+  outline:none;text-align:left;transition:border-color .15s}
+.wp-input:focus,.wp-input.open{border-color:var(--blue);box-shadow:0 0 0 3px rgba(41,82,179,.12)}
+.wp-dropdown{
+  display:none;position:absolute;top:calc(100% + 6px);left:0;z-index:999;
+  background:#fff;border:1.5px solid var(--border);border-radius:var(--r);
+  box-shadow:0 8px 24px rgba(26,46,90,.15);padding:12px;min-width:280px}
+.wp-dropdown.open{display:block}
+.wp-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.wp-nav-btn{
+  background:none;border:none;cursor:pointer;padding:4px 10px;
+  font-size:18px;color:var(--text2);border-radius:var(--r-sm);line-height:1}
+.wp-nav-btn:hover{background:var(--gray1)}
+.wp-nav-title{font-size:14px;font-weight:700;color:var(--navy)}
+.wp-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.wp-dow{text-align:center;font-size:10px;font-weight:700;
+  color:var(--text3);padding:4px 0;letter-spacing:.03em}
+.wp-dow.sun{color:#e05}
+.wp-day{
+  text-align:center;padding:7px 2px;font-size:13px;
+  border-radius:0;cursor:pointer;color:var(--text);
+  transition:background .1s,color .1s;position:relative}
+.wp-day.other{color:var(--gray3)}
+.wp-day.today{font-weight:700;color:var(--blue)}
+.wp-day.in-week{background:var(--blue-xl);color:var(--blue)}
+.wp-day.week-start{border-radius:var(--r-sm) 0 0 var(--r-sm);background:var(--blue);color:#fff;font-weight:700}
+.wp-day.week-end{border-radius:0 var(--r-sm) var(--r-sm) 0;background:var(--blue);color:#fff;font-weight:700}
+.wp-day:hover .wp-day-inner{background:var(--gray2);border-radius:4px}
+.wp-day-inner{padding:2px 0;border-radius:0}
 </style>
 </head>
 <body>
@@ -589,8 +624,12 @@ select{
         <input type="text" id="class-name" placeholder="예: 사랑반">
       </div>
       <div>
-        <span class="slabel">주간 (해당 주 일요일)</span>
-        <input type="date" id="week-start" onchange="updateWeekLabel('week-start','week-label')">
+        <span class="slabel">주간 선택</span>
+        <div class="wp-wrap" id="wp-write">
+          <button type="button" class="wp-input" id="wp-write-btn" onclick="wpToggle('wp-write')">주간을 선택하세요</button>
+          <div class="wp-dropdown" id="wp-write-drop"></div>
+        </div>
+        <input type="hidden" id="week-start">
         <div id="week-label" class="week-hint"></div>
       </div>
     </div>
@@ -631,7 +670,11 @@ select{
       <div style="display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:flex-end">
         <div>
           <span class="slabel" style="margin-top:0">주간 선택 (일요일)</span>
-          <input type="date" id="chief-week" onchange="updateWeekLabel('chief-week','chief-week-hint')">
+          <div class="wp-wrap" id="wp-chief">
+            <button type="button" class="wp-input" id="wp-chief-btn" onclick="wpToggle('wp-chief')">주간을 선택하세요</button>
+            <div class="wp-dropdown" id="wp-chief-drop"></div>
+          </div>
+          <input type="hidden" id="chief-week">
         </div>
         <button class="btn primary" onclick="runTeacherReport()">조회</button>
         <button class="btn" onclick="printTeacherReport()">인쇄</button>
@@ -928,22 +971,30 @@ async function jnlDel(id){
 }
 
 /* ════════════════════════ DATE ════════════════════════════════ */
+// s(YYYY-MM-DD) → 해당 주 월요일 반환
 function toMonday(s){
-  const d=new Date(s),day=d.getDay();
+  const d=new Date(s+'T00:00:00'),day=d.getDay();
   const diff=day===0?-6:1-day;
   d.setDate(d.getDate()+diff);
   return d.toISOString().split('T')[0];
 }
-function weekLabel(s){
-  // s는 저장된 날짜(선택한 날짜의 월요일)
-  // 월요일로 보정 후 +6일 = 일요일
-  const a=new Date(s+'T00:00:00');
-  const aDay=a.getDay();
-  const diff=aDay===0?-6:1-aDay;
-  a.setDate(a.getDate()+diff);          // 월요일로 스냅
-  const b=new Date(a); b.setDate(a.getDate()+6); // 일요일
+// s(월요일 날짜) → 일요일 날짜 반환
+function toSunday(s){
+  const d=new Date(s+'T00:00:00');
+  d.setDate(d.getDate()+6);
+  return d.toISOString().split('T')[0];
+}
+// weekStart(월요일) 기준 "6/16(월) ~ 6/22(일)" 형태 레이블
+function weekLabel(weekStart){
+  const mon=new Date(weekStart+'T00:00:00');
+  const sun=new Date(weekStart+'T00:00:00'); sun.setDate(sun.getDate()+6);
   const f=d=>`${d.getMonth()+1}/${d.getDate()}`;
-  return `${a.getFullYear()}년 ${f(a)}(월) ~ ${f(b)}(일)`;
+  return `${mon.getFullYear()}년 ${f(mon)}(월) ~ ${f(sun)}(일)`;
+}
+// 제목용: weekStart(월요일) → 해당 주 일요일 "6/22" 형태
+function weekTitleDate(weekStart){
+  const sun=new Date(weekStart+'T00:00:00'); sun.setDate(sun.getDate()+6);
+  return `${sun.getFullYear()}.${String(sun.getMonth()+1).padStart(2,'0')}.${String(sun.getDate()).padStart(2,'0')}`;
 }
 function updateWeekLabel(iId,hId){
   const el=document.getElementById(iId); if(!el.value) return;
@@ -951,6 +1002,154 @@ function updateWeekLabel(iId,hId){
   document.getElementById(hId).textContent=weekLabel(el.value);
 }
 function snapSunday(iId,hId){ updateWeekLabel(iId,hId); }
+
+/* ════════════════════════ WEEK PICKER ════════════════════════ */
+const _wpState={};  // {wrapId: {year,month,selectedMonday}}
+
+function wpInit(wrapId, initialMonday){
+  const d = initialMonday ? new Date(initialMonday+'T00:00:00') : new Date();
+  _wpState[wrapId]={year:d.getFullYear(), month:d.getMonth(), selectedMonday:initialMonday||null};
+  wpRender(wrapId);
+}
+
+function wpToggle(wrapId){
+  const drop=document.getElementById(wrapId+'-drop');
+  const btn=document.getElementById(wrapId+'-btn');
+  const isOpen=drop.classList.contains('open');
+  // 다른 것 닫기
+  document.querySelectorAll('.wp-dropdown.open').forEach(el=>el.classList.remove('open'));
+  document.querySelectorAll('.wp-input.open').forEach(el=>el.classList.remove('open'));
+  if(!isOpen){
+    drop.classList.add('open');
+    btn.classList.add('open');
+    if(!_wpState[wrapId]) wpInit(wrapId);
+    else wpRender(wrapId);
+  }
+}
+
+function wpClose(wrapId){
+  document.getElementById(wrapId+'-drop')?.classList.remove('open');
+  document.getElementById(wrapId+'-btn')?.classList.remove('open');
+}
+
+function wpNav(wrapId, delta){
+  const st=_wpState[wrapId];
+  st.month+=delta;
+  if(st.month>11){st.month=0;st.year++;}
+  if(st.month<0){st.month=11;st.year--;}
+  wpRender(wrapId);
+}
+
+function wpRender(wrapId){
+  const st=_wpState[wrapId];
+  const drop=document.getElementById(wrapId+'-drop');
+  const today=new Date(); today.setHours(0,0,0,0);
+  const todayStr=today.toISOString().split('T')[0];
+
+  const selMon=st.selectedMonday;
+  const selSun=selMon?toSunday(selMon):null;
+
+  // 달력 첫날(해당 월 1일의 주 시작 월요일)
+  const firstDay=new Date(st.year, st.month, 1);
+  const startDay=firstDay.getDay(); // 0=일
+  // 달력 시작: 월요일 기준이므로 1일이 무슨 요일인지에 따라 앞으로 당기기
+  const calStart=new Date(firstDay);
+  const backDays=startDay===0?6:startDay-1;
+  calStart.setDate(1-backDays);
+
+  const DOW=['월','화','수','목','금','토','일'];
+  let cells='';
+  const cur=new Date(calStart);
+  for(let i=0;i<42;i++){
+    const ds=cur.toISOString().split('T')[0];
+    const isOther=cur.getMonth()!==st.month;
+    const isToday=ds===todayStr;
+    const inWeek=selMon&&ds>=selMon&&ds<=selSun;
+    const isStart=ds===selMon;
+    const isEnd=ds===selSun;
+    let cls='wp-day';
+    if(isOther) cls+=' other';
+    if(isToday) cls+=' today';
+    if(isStart) cls+=' week-start';
+    else if(isEnd) cls+=' week-end';
+    else if(inWeek) cls+=' in-week';
+    const day=cur.getDate();
+    cells+=`<div class="${cls}" 
+      onmouseenter="wpHover('${wrapId}','${ds}')"
+      onmouseleave="wpHoverEnd('${wrapId}')"
+      onclick="wpSelect('${wrapId}','${ds}')">
+      <div class="wp-day-inner">${day}</div>
+    </div>`;
+    cur.setDate(cur.getDate()+1);
+  }
+
+  const monthNames=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+  drop.innerHTML=`
+    <div class="wp-nav">
+      <button class="wp-nav-btn" onclick="wpNav('${wrapId}',-1)">‹</button>
+      <span class="wp-nav-title">${st.year}년 ${monthNames[st.month]}</span>
+      <button class="wp-nav-btn" onclick="wpNav('${wrapId}',1)">›</button>
+    </div>
+    <div class="wp-grid">
+      ${DOW.map((d,i)=>`<div class="wp-dow${i===6?' sun':''}">${d}</div>`).join('')}
+      ${cells}
+    </div>`;
+}
+
+function wpHover(wrapId, ds){
+  // 호버시 해당 주 임시 하이라이트
+  const st=_wpState[wrapId];
+  const hoverMon=toMonday(ds);
+  const hoverSun=toSunday(hoverMon);
+  const drop=document.getElementById(wrapId+'-drop');
+  drop.querySelectorAll('.wp-day').forEach(el=>{
+    const onclick=el.getAttribute('onclick');
+    const m=onclick&&onclick.match(/'(\d{4}-\d{2}-\d{2})'/);
+    if(!m) return;
+    const d=m[1];
+    el.classList.remove('in-week','week-start','week-end');
+    // 기존 선택 유지
+    const selMon=st.selectedMonday;
+    const selSun=selMon?toSunday(selMon):null;
+    if(d===hoverMon) el.classList.add('week-start');
+    else if(d===hoverSun) el.classList.add('week-end');
+    else if(d>hoverMon&&d<hoverSun) el.classList.add('in-week');
+  });
+}
+
+function wpHoverEnd(wrapId){
+  // 호버 끝나면 선택된 주로 복원
+  wpRender(wrapId);
+}
+
+function wpSelect(wrapId, ds){
+  const mon=toMonday(ds);
+  const st=_wpState[wrapId];
+  st.selectedMonday=mon;
+  wpRender(wrapId);
+  wpClose(wrapId);
+
+  // hidden input & 힌트 업데이트
+  if(wrapId==='wp-write'){
+    document.getElementById('week-start').value=mon;
+    document.getElementById('week-label').textContent=weekLabel(mon);
+    document.getElementById('wp-write-btn').textContent=weekLabel(mon);
+  } else if(wrapId==='wp-chief'){
+    document.getElementById('chief-week').value=mon;
+    const hint=document.getElementById('chief-week-hint');
+    if(hint) hint.textContent=weekLabel(mon);
+    document.getElementById('wp-chief-btn').textContent=weekLabel(mon);
+  }
+}
+
+// 외부 클릭 시 닫기
+document.addEventListener('click',function(e){
+  if(!e.target.closest('.wp-wrap')){
+    document.querySelectorAll('.wp-dropdown.open').forEach(el=>el.classList.remove('open'));
+    document.querySelectorAll('.wp-input.open').forEach(el=>el.classList.remove('open'));
+  }
+});
+
 
 /* ════════════════════════ TABS ════════════════════════════════ */
 function switchTab(t){
@@ -1144,7 +1343,7 @@ async function renderRecordsList(){
     <div class="rec-item">
       <div class="rec-item-body" onclick="viewRecord(${r.id})">
         <div class="rec-title" style="display:flex;align-items:center;gap:8px">
-          ${r.weekStart.replace(/-/g,'.')} ${r.className}
+          ${weekTitleDate(r.weekStart)} ${r.className}
           ${done?'<span class="status-badge done">완료</span>':''}
         </div>
         <div class="rec-meta">${weekLabel(r.weekStart)} · ${r.members.length}명</div>
@@ -1255,7 +1454,7 @@ function buildViewPanel(rec,opts={}){
     <div class="vp-topbar">
       <div>
         <div class="vp-title" style="display:flex;align-items:center;gap:8px">
-          ${rec.weekStart.replace(/-/g,'.')} ${rec.className}
+          ${weekTitleDate(rec.weekStart)} ${rec.className}
           ${rec.members.find((m,i)=>m.isTeacher||i===0)?.completed
             ?`<span class="status-badge done">완료</span>`:''}
         </div>
@@ -1273,7 +1472,7 @@ function buildViewPanel(rec,opts={}){
 async function printRecord(id){
   const arr=await getAllRecords();
   const rec=arr.find(r=>r.id===id); if(!rec) return;
-  openPrint(`${rec.weekStart} ${rec.className}`,buildViewPanel(rec,{noPrint:true}));
+  openPrint(`${weekTitleDate(rec.weekStart)} ${rec.className}`,buildViewPanel(rec,{noPrint:true}));
 }
 
 function openPrint(title,body){
@@ -1504,9 +1703,11 @@ async function printTeacherReport(){
 
 /* ════════════════════════ CHIEF — TALENT ══════════════════════ */
 async function runTalentReport(){
-  const from=document.getElementById('talent-from').value;
-  const to=document.getElementById('talent-to').value;
-  if(!from||!to){alert('기간을 선택해주세요.');return;}
+  const fromRaw=document.getElementById('talent-from').value;
+  const toRaw=document.getElementById('talent-to').value;
+  if(!fromRaw||!toRaw){alert('기간을 선택해주세요.');return;}
+  const from=toMonday(fromRaw);
+  const to=toMonday(toRaw);
   const cont=document.getElementById('talent-report');
   cont.innerHTML='<div class="empty-state"><span class="spinner dark"></span></div>';
   const arr=(await getAllRecords()).filter(r=>r.weekStart>=from&&r.weekStart<=to);
@@ -1720,8 +1921,10 @@ async function runPrayerReport(){
   const cont=document.getElementById('prayer-report');
   cont.innerHTML='<div class="empty-state"><span class="spinner dark"></span></div>';
   let arr=await getAllRecords();
-  if(from) arr=arr.filter(r=>r.weekStart>=from);
-  if(to)   arr=arr.filter(r=>r.weekStart<=to);
+  const fromM=from?toMonday(from):null;
+  const toM=to?toMonday(to):null;
+  if(fromM) arr=arr.filter(r=>r.weekStart>=fromM);
+  if(toM)   arr=arr.filter(r=>r.weekStart<=toM);
   const results=[];
   arr.forEach(rec=>{
     rec.members.filter((m,i)=>!(m.isTeacher||i===0)).forEach(m=>{
@@ -1875,6 +2078,9 @@ async function saveJournalEdit(){
   await jnlSave(updated); closeJournalEdit(); renderJournals();
 }
 
+/* ════════════════════════ WEEK QUICK SELECT ═══════════════════ */
+
+
 /* ════════════════════════ INIT ════════════════════════════════ */
 (function(){
   const today=new Date();
@@ -1886,8 +2092,14 @@ async function saveJournalEdit(){
 
   document.getElementById('week-start').value=s;
   document.getElementById('chief-week').value=s;
-  updateWeekLabel('week-start','week-label');
-  updateWeekLabel('chief-week','chief-week-hint');
+  // 주간 달력 위젯 초기화
+  wpInit('wp-write', s);
+  wpInit('wp-chief', s);
+  document.getElementById('wp-write-btn').textContent=weekLabel(s);
+  document.getElementById('wp-chief-btn').textContent=weekLabel(s);
+  document.getElementById('week-label').textContent=weekLabel(s);
+  const hint=document.getElementById('chief-week-hint');
+  if(hint) hint.textContent=weekLabel(s);
 
   buildMemberCard({role:'teacher',data:{name:''},
     container:document.getElementById('members-container'),removable:false});
