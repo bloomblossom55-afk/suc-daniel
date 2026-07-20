@@ -2129,6 +2129,7 @@ async function renderJournals(){
         <div style="display:flex;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
           <button class="btn sm secondary" onclick="openJournalEdit(${j.id})">✏️ 수정</button>
           <button class="btn sm danger" onclick="deleteJournal(${j.id})">🗑️ 삭제</button>
+          <button class="btn sm" onclick="printJournal(${j.id})">🖨️ 인쇄</button>
         </div>
       </div>
     </div>`;
@@ -2139,6 +2140,52 @@ window.renderJournals = renderJournals;
 
 function toggleJournal(id){
   document.getElementById('jb-'+id)?.classList.toggle('open');
+}
+
+function printJournal(id){
+  const j=jnlLocalAll().find(x=>x.id===id); if(!j) return;
+  const DOWS=['일','월','화','수','목','금','토'];
+  const d=new Date(j.date+'T00:00:00');
+  const dateTitle=`${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일 (${DOWS[d.getDay()]})`;
+  // content를 줄 단위로 파싱해서 항목명:내용 형식으로 렌더링
+  const rows=((j.content||'').split('\n')).map(line=>{
+    const col=line.indexOf(':');
+    if(col>0){
+      const label=line.slice(0,col).trim();
+      const val=line.slice(col+1).trim();
+      return `<tr>
+        <td style="width:110px;font-weight:700;color:var(--navy);padding:9px 12px;
+          background:#f5f6f9;border:1px solid var(--border);white-space:nowrap;vertical-align:top">
+          ${escHtml(label)}
+        </td>
+        <td style="padding:9px 12px;border:1px solid var(--border);
+          color:var(--text);line-height:1.75;white-space:pre-wrap">
+          ${escHtml(val)}
+        </td>
+      </tr>`;
+    }
+    return '';
+  }).join('');
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html lang="ko"><head>
+    <meta charset="UTF-8"><title>예배일지 - ${dateTitle}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Noto Sans KR',sans-serif;padding:28px 32px;background:#fff;max-width:720px}
+    :root{--navy:#1a2e5a;--text:#1a1d28;--border:#dde1ed;--gray1:#f5f6f9}
+    h1{font-size:15px;font-weight:700;color:var(--navy);margin-bottom:4px}
+    .sub{font-size:11px;color:#8b91a8;margin-bottom:18px}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    @media print{@page{margin:20mm}}
+    </style>
+  </head><body>
+    <h1>📖 예배일지 — ${dateTitle}</h1>
+    <div class="sub">신촌연합교회 다니엘부</div>
+    <table>${rows}</table>
+    <script>window.onload=()=>{window.print();window.close();}<\/script>
+  </body></html>`);
+  w.document.close();
 }
 
 function clearJournalFilter(){
